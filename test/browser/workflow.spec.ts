@@ -49,6 +49,9 @@ test("select → source → composer → compare → confirm → restore, retain
   expect(color).toEqual([128, 150, 99, 255]);
   await page.getByRole("button", { name: "Add to chat", exact: true }).click();
   const composer = page.getByRole("textbox", { name: "Composer" });
+  // Insertion follows an asynchronous IndexedDB revision check. Wait for the
+  // visible update instead of reading the old draft immediately after a click.
+  await expect(composer).toHaveValue(/src\/App\.tsx/);
   const text = await composer.inputValue();
   expect(text).toContain("Existing draft.");
   expect(text).toContain("src/App.tsx");
@@ -145,6 +148,9 @@ test("private content is excluded and unrelated windows cannot inject a selectio
     .click();
   await expect(page.locator(".ve-image img")).toHaveCount(0);
   await page.getByRole("button", { name: "Add to chat", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Composer" })).toHaveValue(
+    /\[private element\]/,
+  );
   const prompt = await page
     .getByRole("textbox", { name: "Composer" })
     .inputValue();
