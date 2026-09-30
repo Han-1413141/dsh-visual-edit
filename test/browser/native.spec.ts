@@ -245,3 +245,44 @@ test("manual comparison survives viewport changes and a deleted element", async 
   await expect(page.locator(".ve-image").last()).toContainText("original area");
   await expect(page.locator(".ve-image").last()).toContainText("size changed");
 });
+
+test("unique native targets survive shifted source lines and animated cards keep their content", async ({
+  page,
+}) => {
+  await page.goto("/native.html");
+  const frame = page.frameLocator("iframe[data-html-preview]");
+  await page.getByRole("button", { name: "Visual Edit", exact: true }).click();
+  await expect(page.locator(".ve-native-picking")).toBeVisible();
+  await frame.locator("main").click({ position: { x: 15, y: 15 } });
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Update this card.");
+  await page
+    .getByRole("button", { name: "Add to chat & compare", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Move source and animate", exact: true })
+    .click();
+  await expect(page.locator(".ve-image img")).toHaveCount(2, {
+    timeout: 15000,
+  });
+  await expect(page.locator(".ve-image").last()).not.toContainText(
+    "original area",
+  );
+  const light = await page
+    .locator(".ve-image img")
+    .last()
+    .evaluate((img: HTMLImageElement) => {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const rgba = ctx.getImageData(0, 0, c.width, c.height).data;
+      let count = 0;
+      for (let i = 0; i < rgba.length; i += 4)
+        if (rgba[i] > 210 && rgba[i + 1] > 210 && rgba[i + 2] > 210) count++;
+      return count;
+    });
+  expect(light).toBeGreaterThan(100);
+});

@@ -28,9 +28,9 @@ The desktop Browser uses the existing Electron webview's `executeJavaScript`, wi
 
 ## Selection and images
 
-Element selection uses a unique ID, unique test ID, or bounded CSS path. Locator validation also checks the tag and available source identity. When native capture cannot establish the original element, it captures the original document region and sets an explicit fallback flag. Changed viewport dimensions are allowed in native mode and labeled. Legacy iframe mode retains its strict URL/viewport/element checks.
+Element selection uses a unique ID, unique test ID, or bounded CSS path. Locator validation also checks the tag and available source identity. Native unique selectors without positional pseudo-classes tolerate moved source lines; ambiguous positional identities still fall back. When native capture cannot establish the original element, it captures the original document region and sets an explicit fallback flag. Changed viewport dimensions are allowed in native mode and labeled. Legacy iframe mode retains its strict URL/viewport/element checks.
 
-Arrow and rectangle gestures record document coordinates. An arrow also records the endpoint's element locator. `annotation.ts` crops the page DOM into the selected region while preserving original layout dimensions, then draws the annotation. Native element snapshots use a page crop too, retaining ancestor backgrounds so light text on gradients stays visible. Output is capped at 1600 pixels per dimension and 650,000 data-URL characters.
+Arrow and rectangle gestures record document coordinates. An arrow also records the endpoint's element locator. `annotation.ts` crops the page DOM into the selected region while preserving original layout dimensions, then draws the annotation. Native element snapshots use a page crop too, retaining ancestor backgrounds so light text on gradients stays visible. Computed animation/transition appearance is frozen inside the image clone so entrance animations do not restart invisibly. Output is capped at 1600 pixels per dimension and 650,000 data-URL characters.
 
 Snapshots omit form/editable/private descendants and skip external web fonts. Rendering failure retains available metadata with an explanation. They are DOM renders, not pixel-exact screenshots; child iframes, Shadow DOM, canvas/WebGL and remote resources have limits.
 

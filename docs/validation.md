@@ -6,7 +6,7 @@ Date: **2026-09-30**. Windows, Node **24.19.0**, DSH **0.2.0-rc.2**, Chromium. N
 
 - TypeScript strict checking and all four production builds.
 - **11 unit tests**: original source/prompt/backup boundaries plus native HTML coordinates, native resource references, annotation coordinates and flagged viewport changes in backups.
-- **19 Chromium scenarios**: the 11 legacy workflows, a Browser transport adapter, plus native HTML selection, opaque static preview, channel isolation, arrow and rectangle gestures, one-click insertion, automatic comparison across renderer replacement and DOM updates, ignoring unrelated changes, stopping after confirmation, and manual capture after deleting an element/resizing the viewport.
+- **20 Chromium scenarios**: the 11 legacy workflows, a Browser transport adapter, plus native HTML selection, opaque static preview, channel isolation, arrow and rectangle gestures, one-click insertion, automatic comparison across renderer replacement and DOM updates, ignoring unrelated changes, stopping after confirmation, and manual capture after deleting an element/resizing the viewport, and shifted source lines with an animated card whose PNG must contain the visible text.
 - Annotation tests decode the output PNG and check page text/background pixels, not merely the presence of an image URL.
 - Production demo build verifies that neither the inspector nor source metadata is shipped.
 

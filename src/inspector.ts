@@ -239,6 +239,10 @@ function resolve(target: Snapshot): HTMLElement {
     throw new Error("elementMissing");
   const node = nodes[0];
   const actual = locator(node);
+  // Native HTML line numbers move when CSS or markup is added above a unique,
+  // non-positional target. They are navigation hints, not that target's identity.
+  const stableNativePath =
+    !!boot && !/:nth-|:first-|:last-/.test(target.locator.selector);
   if (
     actual.tag !== target.locator.tag ||
     (target.locator.id && node.id !== target.locator.id) ||
@@ -248,6 +252,7 @@ function resolve(target: Snapshot): HTMLElement {
     (target.locator.source &&
       !target.locator.id &&
       !target.locator.testId &&
+      !stableNativePath &&
       (actual.source?.line !== target.locator.source.line ||
         actual.source?.column !== target.locator.source.column))
   )

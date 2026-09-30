@@ -1,4 +1,4 @@
-import { toCanvas } from "html-to-image";
+import { toSvg } from "html-to-image";
 import type { Annotation, Rect, Snapshot } from "./shared/model";
 
 export const PRIVATE =
@@ -100,6 +100,7 @@ export function visualFacts(
         css.boxShadow,
         css.opacity,
         css.transform,
+        css.clipPath,
         css.backgroundImage,
         el instanceof HTMLImageElement ? el.currentSrc : "",
       ]);
@@ -163,10 +164,9 @@ export async function regionImage(
   const width = Math.max(root.clientWidth, root.scrollWidth);
   const height = Math.max(root.clientHeight, root.scrollHeight);
   // Crop the clone into a small canvas while preserving the original page's layout dimensions.
-  const canvas = await toCanvas(root, {
+  const svg = await toSvg(root, {
     width: Math.ceil(region.width),
     height: Math.ceil(region.height),
-    pixelRatio: Math.min(1, 1600 / region.width, 1600 / region.height),
     skipFonts: true,
     cacheBust: false,
     backgroundColor: getComputedStyle(document.body).backgroundColor,
@@ -180,7 +180,40 @@ export async function regionImage(
       transform: `translate(${-region.x}px, ${-region.y}px)`,
     },
   });
+  // A cloned CSS entrance animation would restart at opacity:0 inside the SVG.
+  // Freeze the already-computed appearance instead of rendering a blank card.
+  const svgDocument = new DOMParser().parseFromString(
+    decodeURIComponent(svg.slice(svg.indexOf(",") + 1)),
+    "image/svg+xml",
+  );
+  for (const el of svgDocument.querySelectorAll("foreignObject *")) {
+    el.setAttribute(
+      "style",
+      `${el.getAttribute("style") ?? ""};animation:none!important;transition:none!important;caret-color:transparent!important;`,
+    );
+  }
+  const image = new Image();
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("snapshotUnavailable")),
+      8000,
+    );
+    image.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("snapshotUnavailable"));
+    };
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svgDocument))}`;
+  });
+  const ratio = Math.min(1, 1600 / region.width, 1600 / region.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(region.width * ratio));
+  canvas.height = Math.max(1, Math.floor(region.height * ratio));
   const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   ctx.scale(canvas.width / region.width, canvas.height / region.height);
   if (annotation?.kind === "arrow") drawArrow(ctx, annotation);
   else if (annotation?.kind === "region") {

@@ -64,6 +64,18 @@ function Fixture() {
           Remove heading
         </button>
         <button onClick={() => update(html(false))}>Reload unchanged</button>
+        <button
+          onClick={() =>
+            update(
+              html(true).replace(
+                "<head>",
+                "<head>\n\n<style>@keyframes enter{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}main{animation:enter .4s both}</style>",
+              ),
+            )
+          }
+        >
+          Move source and animate
+        </button>
         <button onClick={() => setSecond(!second)}>Second preview</button>
         <button
           onClick={() => document.body.toggleAttribute("data-ds-dark-theme")}
