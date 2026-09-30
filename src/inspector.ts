@@ -1,25 +1,62 @@
 import { version } from "../package.json";
 import { toPng } from "html-to-image";
 import {
+  PRIVATE,
+  OVERLAY,
+  styles,
+  digest,
+  documentRect,
+  originalRegion,
+  visualFacts,
+  regionText,
+  regionImage,
+} from "./annotation";
+import {
   MAX_IMAGE,
   PROTOCOL,
   sourceLocation,
   validSnapshot,
+  snapshotUrl,
   type Locator,
   type ParentMessage,
   type Snapshot,
+  type SelectionMode,
+  type Annotation,
+  type Point,
+  type Rect,
 } from "./shared/model";
 
 const script = document.currentScript as HTMLScriptElement | null;
-const allowedOrigins: string[] = JSON.parse(script?.dataset.origins ?? "[]");
-const PRIVATE =
-  'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[data-private],[data-visual-edit-private]';
+type Boot = {
+  kind: "frame" | "webview";
+  channel: string;
+  key: string;
+  pageUrl: string;
+  parentOrigin: string;
+};
+const globals = globalThis as typeof globalThis & {
+  __DSH_VE_BOOT__?: Boot;
+  __DSH_VE_DISPOSE__?: () => void;
+};
+const boot = globals.__DSH_VE_BOOT__;
+delete globals.__DSH_VE_BOOT__;
+if (typeof globals.__DSH_VE_DISPOSE__ === "function")
+  globals.__DSH_VE_DISPOSE__();
+const allowedOrigins: string[] = boot
+  ? [boot.parentOrigin]
+  : JSON.parse(script?.dataset.origins ?? "[]");
+const events: Record<string, unknown>[] = [];
 const SOURCE = "data-dsh-ve-source";
 let parentOrigin = "";
-let channel = "";
+let channel = boot?.channel ?? "";
 let picking = false;
 let disposed = false;
 let capturing = false;
+let mode: SelectionMode = "element";
+let drag: Point | undefined;
+let suppressClick = false;
+let watching: { id: string; snapshot: Snapshot; key?: string }[] = [];
+let watchTimer: ReturnType<typeof setTimeout> | undefined;
 const overlay = document.createElement("div");
 overlay.setAttribute("data-visual-edit-overlay", "");
 overlay.style.cssText =
@@ -27,6 +64,11 @@ overlay.style.cssText =
 document.documentElement.appendChild(overlay);
 
 function send(message: Record<string, unknown>): void {
+  if (boot?.kind === "webview" && !disposed) {
+    if (events.length < 12)
+      events.push({ ...message, protocol: PROTOCOL, channel });
+    return;
+  }
   if (parentOrigin && channel && !disposed)
     window.parent.postMessage(
       { ...message, protocol: PROTOCOL, channel },
@@ -34,12 +76,14 @@ function send(message: Record<string, unknown>): void {
     );
 }
 function publicUrl(): string {
-  return location.origin + location.pathname;
+  return snapshotUrl(boot?.pageUrl ?? location.href);
 }
 async function pageKey(): Promise<string> {
   const bytes = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(location.href),
+    new TextEncoder().encode(
+      boot?.kind === "frame" ? boot.pageUrl : location.href,
+    ),
   );
   return Array.from(new Uint8Array(bytes), (n) =>
     n.toString(16).padStart(2, "0"),
@@ -57,6 +101,8 @@ function pointTo(node: HTMLElement): void {
   const r = node.getBoundingClientRect();
   overlay.style.display = "block";
   Object.assign(overlay.style, {
+    border: "2px solid #4265e8",
+    background: "rgba(66,101,232,.08)",
     left: `${r.left}px`,
     top: `${r.top}px`,
     width: `${r.width}px`,
@@ -123,51 +169,55 @@ function safeText(node: HTMLElement): string {
     .forEach((el) => el.remove());
   return (clone.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 2000);
 }
-async function snapshot(node: HTMLElement): Promise<Snapshot> {
+async function snapshot(
+  node: HTMLElement,
+  annotation?: Annotation,
+  fallback?: Snapshot,
+): Promise<Snapshot> {
   const key = await pageKey();
   const r = node.getBoundingClientRect();
   const css = getComputedStyle(node);
-  const styles = Object.fromEntries(
-    [
-      "color",
-      "backgroundColor",
-      "fontSize",
-      "fontWeight",
-      "width",
-      "height",
-      "padding",
-      "borderRadius",
-      "display",
-      "whiteSpace",
-    ].map((k) => [k, css[k as any].slice(0, 250)]),
-  );
+  const region =
+    annotation?.region ?? (fallback ? originalRegion(fallback) : undefined);
   const s: Snapshot = {
     url: publicUrl(),
     pageKey: key,
     capturedAt: new Date().toISOString(),
     viewport: { width: innerWidth, height: innerHeight },
-    locator: locator(node),
-    text: safeText(node),
-    styles,
-    rect: { width: r.width, height: r.height, x: r.x, y: r.y },
+    locator: fallback?.locator ?? locator(node),
+    text: region ? regionText(region) : safeText(node),
+    styles: fallback ? {} : styles(node),
+    rect: region
+      ? { ...region, x: region.x - scrollX, y: region.y - scrollY }
+      : { width: r.width, height: r.height, x: r.x, y: r.y },
+    scroll: { x: scrollX, y: scrollY },
+    visualKey: await digest(visualFacts(node, region)),
+    ...(annotation ? { annotation } : {}),
+    ...(fallback ? { fallbackRegion: true } : {}),
   };
   if (node.closest(PRIVATE)) s.warning = "privateElement";
-  else if (!r.width || !r.height || r.width > 1600 || r.height > 1600)
+  else if (
+    !region &&
+    (!r.width || !r.height || r.width > 1600 || r.height > 1600)
+  )
     s.warning = "snapshotSize";
   else {
     try {
-      const image = await toPng(node, {
-        pixelRatio: 1,
-        skipFonts: true,
-        cacheBust: false,
-        filter: (element) =>
-          !(element instanceof Element) ||
-          (!element.matches(PRIVATE) && element !== overlay),
-        // html-to-image also applies backgroundColor to the cloned root. Restore
-        // the element's own background so colored buttons are not washed out.
-        backgroundColor: getComputedStyle(document.body).backgroundColor,
-        style: { backgroundColor: css.backgroundColor },
-      });
+      const image =
+        region || boot
+          ? await regionImage(region ?? documentRect(node), annotation)
+          : await toPng(node, {
+              pixelRatio: 1,
+              skipFonts: true,
+              cacheBust: false,
+              filter: (element) =>
+                !(element instanceof Element) ||
+                (!element.matches(PRIVATE) && element !== overlay),
+              // html-to-image also applies backgroundColor to the cloned root. Restore
+              // the element's own background so colored buttons are not washed out.
+              backgroundColor: getComputedStyle(document.body).backgroundColor,
+              style: { backgroundColor: css.backgroundColor },
+            });
       if (image.length <= MAX_IMAGE) s.image = image;
       else s.warning = "snapshotSize";
     } catch {
@@ -206,22 +256,48 @@ function resolve(target: Snapshot): HTMLElement {
 }
 function stopPick(): void {
   picking = false;
+  drag = undefined;
   overlay.style.display = "none";
+  overlay.replaceChildren();
   send({ type: "pick-ended" });
 }
 const move = (e: MouseEvent): void => {
-  if (picking && eligible(e.target)) pointTo(e.target);
+  if (!picking) return;
+  if (mode === "element" && eligible(e.target)) pointTo(e.target);
+  else if (drag) {
+    const to = { x: Math.max(0, e.clientX), y: Math.max(0, e.clientY) };
+    Object.assign(overlay.style, {
+      display: "block",
+      left: "0",
+      top: "0",
+      width: "100%",
+      height: "100%",
+      border: "0",
+      background: "transparent",
+    });
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", "100%");
+    const shape = document.createElementNS(svg.namespaceURI, "path");
+    const a = Math.atan2(to.y - drag.y, to.x - drag.x);
+    shape.setAttribute(
+      "d",
+      mode === "arrow"
+        ? `M${drag.x} ${drag.y}L${to.x} ${to.y}M${to.x - 12 * Math.cos(a - 0.5)} ${to.y - 12 * Math.sin(a - 0.5)}L${to.x} ${to.y}L${to.x - 12 * Math.cos(a + 0.5)} ${to.y - 12 * Math.sin(a + 0.5)}`
+        : `M${drag.x} ${drag.y}H${to.x}V${to.y}H${drag.x}Z`,
+    );
+    shape.setAttribute("fill", mode === "region" ? "#4265e814" : "none");
+    shape.setAttribute("stroke", "#4265e8");
+    shape.setAttribute("stroke-width", "2");
+    svg.append(shape);
+    overlay.replaceChildren(svg);
+  }
 };
-const click = async (e: MouseEvent): Promise<void> => {
-  if (!picking || !eligible(e.target)) return;
-  e.preventDefault();
-  e.stopImmediatePropagation();
-  if (capturing) return;
-  const node = e.target;
+async function selected(node: HTMLElement, annotation?: Annotation) {
   stopPick();
   capturing = true;
   try {
-    send({ type: "selected", snapshot: await snapshot(node) });
+    send({ type: "selected", snapshot: await snapshot(node, annotation) });
   } catch (error) {
     send({
       type: "error",
@@ -229,7 +305,70 @@ const click = async (e: MouseEvent): Promise<void> => {
     });
   } finally {
     capturing = false;
+    scheduleWatch();
   }
+}
+const down = (e: MouseEvent) => {
+  if (!picking || e.button !== 0 || mode === "element") return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  drag = { x: Math.max(0, e.clientX), y: Math.max(0, e.clientY) };
+};
+const up = (e: MouseEvent) => {
+  if (!picking || !drag || mode === "element") return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  suppressClick = true;
+  setTimeout(() => {
+    suppressClick = false;
+  }, 100);
+  const from = { x: drag.x + scrollX, y: drag.y + scrollY };
+  const to = {
+    x: Math.max(0, Math.min(innerWidth, e.clientX)) + scrollX,
+    y: Math.max(0, Math.min(innerHeight, e.clientY)) + scrollY,
+  };
+  if (Math.hypot(to.x - from.x, to.y - from.y) < 6) {
+    drag = undefined;
+    return;
+  }
+  const node = eligible(e.target) ? e.target : document.body;
+  const bounds =
+    mode === "arrow" && eligible(node)
+      ? documentRect(node)
+      : { x: to.x, y: to.y, width: 0, height: 0 };
+  const pad = mode === "arrow" ? 16 : 0;
+  const x = Math.max(0, Math.min(from.x, to.x, bounds.x) - pad);
+  const y = Math.max(0, Math.min(from.y, to.y, bounds.y) - pad);
+  const region: Rect = {
+    x,
+    y,
+    width: Math.max(
+      1,
+      Math.max(from.x, to.x, bounds.x + bounds.width) + pad - x,
+    ),
+    height: Math.max(
+      1,
+      Math.max(from.y, to.y, bounds.y + bounds.height) + pad - y,
+    ),
+  };
+  void selected(
+    node,
+    mode === "arrow"
+      ? { kind: "arrow", region, from, to }
+      : { kind: "region", region },
+  );
+};
+const click = async (e: MouseEvent): Promise<void> => {
+  if (suppressClick) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    return;
+  }
+  if (!picking) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (capturing || mode !== "element" || !eligible(e.target)) return;
+  await selected(e.target);
 };
 const keydown = (e: KeyboardEvent): void => {
   if (picking && e.key === "Escape") {
@@ -237,34 +376,110 @@ const keydown = (e: KeyboardEvent): void => {
     stopPick();
   }
 };
-const message = async (e: MessageEvent): Promise<void> => {
-  const m = e.data as ParentMessage;
+function scheduleWatch() {
+  if (watchTimer || disposed || !watching.length) return;
+  watchTimer = setTimeout(() => {
+    watchTimer = undefined;
+    if (capturing || picking) {
+      scheduleWatch();
+      return;
+    }
+    void checkWatched();
+  }, 700);
+}
+async function checkWatched() {
+  const changed: string[] = [];
+  const current = watching;
+  for (const item of current) {
+    if (item.snapshot.pageKey !== (await pageKey())) continue;
+    let node: HTMLElement | undefined;
+    try {
+      node = resolve(item.snapshot);
+    } catch {
+      /* Capture the original area if removed. */
+    }
+    const region =
+      item.snapshot.annotation?.region ??
+      (!node || item.snapshot.fallbackRegion
+        ? originalRegion(item.snapshot)
+        : undefined);
+    const key = await digest(visualFacts(node, region));
+    if (key !== item.key) {
+      item.key = key;
+      changed.push(item.id);
+    }
+  }
+  if (current === watching && changed.length)
+    send({ type: "page-changed", ids: changed });
+}
+const observer = new MutationObserver((records) => {
   if (
-    e.source !== window.parent ||
-    !allowedOrigins.includes(e.origin) ||
+    records.some(
+      (record) =>
+        !(
+          record.target instanceof Element
+            ? record.target
+            : record.target.parentElement
+        )?.closest(OVERLAY),
+    )
+  )
+    scheduleWatch();
+});
+observer.observe(document.documentElement, {
+  subtree: true,
+  childList: true,
+  attributes: true,
+  characterData: true,
+});
+const handle = async (m: ParentMessage): Promise<void> => {
+  if (
     !m ||
     m.protocol !== PROTOCOL ||
     typeof m.channel !== "string" ||
     m.channel.length < 16 ||
-    m.channel.length > 128
+    m.channel.length > 128 ||
+    (boot && m.channel !== boot.channel)
   )
     return;
   if (m.type === "hello") {
-    parentOrigin = e.origin;
     channel = m.channel;
     send({ type: "ready", version });
     return;
   }
-  if (e.origin !== parentOrigin || m.channel !== channel) return;
+  if (m.channel !== channel) return;
   if (m.type === "pick" && typeof m.enabled === "boolean") {
+    mode = ["element", "arrow", "region"].includes(m.mode ?? "")
+      ? m.mode!
+      : "element";
+    drag = undefined;
+    overlay.replaceChildren();
     picking = m.enabled;
     if (!picking) overlay.style.display = "none";
+    return;
+  }
+  if (m.type === "watch" && Array.isArray(m.targets)) {
+    watching = m.targets
+      .slice(0, 50)
+      .filter(
+        (item) =>
+          typeof item.id === "string" &&
+          item.id.length <= 200 &&
+          validSnapshot(item.snapshot),
+      )
+      .map((item) => ({
+        ...item,
+        key:
+          item.snapshot.visualKey ??
+          watching.find((old) => old.id === item.id)?.key,
+      }));
+    scheduleWatch();
     return;
   }
   if (m.type === "disconnect") {
     stopPick();
     channel = "";
     parentOrigin = "";
+    watching = [];
     return;
   }
   if (
@@ -279,20 +494,56 @@ const message = async (e: MessageEvent): Promise<void> => {
   try {
     if (
       (await pageKey()) !== m.snapshot.pageKey ||
-      innerWidth !== m.snapshot.viewport.width ||
-      innerHeight !== m.snapshot.viewport.height
+      (!boot &&
+        (innerWidth !== m.snapshot.viewport.width ||
+          innerHeight !== m.snapshot.viewport.height))
     )
       throw new Error("pageOrViewportChanged");
-    const node = resolve(m.snapshot);
+    let node: HTMLElement | undefined;
+    try {
+      node = resolve(m.snapshot);
+    } catch (error) {
+      if (!boot && !m.snapshot.annotation) throw error;
+    }
     if (m.type === "highlight") {
-      node.scrollIntoView({ block: "center" });
-      pointTo(node);
+      if (node && !m.snapshot.annotation) {
+        node.scrollIntoView({ block: "center" });
+        pointTo(node);
+      } else {
+        const r = originalRegion(m.snapshot);
+        window.scrollTo({ top: Math.max(0, r.y - innerHeight / 3) });
+        Object.assign(overlay.style, {
+          display: "block",
+          left: `${r.x - scrollX}px`,
+          top: `${r.y - scrollY}px`,
+          width: `${r.width}px`,
+          height: `${r.height}px`,
+          border: "2px solid #4265e8",
+          background: "rgba(66,101,232,.08)",
+        });
+      }
       setTimeout(() => {
         if (!picking) overlay.style.display = "none";
       }, 1400);
       return;
     }
-    send({ type: "captured", requestId, snapshot: await snapshot(node) });
+    if (capturing) throw new Error("captureBusy");
+    capturing = true;
+    try {
+      const result = await snapshot(
+        node ?? document.body,
+        m.snapshot.annotation,
+        !node || m.snapshot.fallbackRegion ? m.snapshot : undefined,
+      );
+      if (
+        innerWidth !== m.snapshot.viewport.width ||
+        innerHeight !== m.snapshot.viewport.height
+      )
+        result.viewportChanged = true;
+      send({ type: "captured", requestId, snapshot: result });
+    } finally {
+      capturing = false;
+    }
   } catch (error) {
     send({
       type: "error",
@@ -301,19 +552,45 @@ const message = async (e: MessageEvent): Promise<void> => {
     });
   }
 };
-window.addEventListener("message", message);
+const message = (e: MessageEvent): void => {
+  if (e.source !== window.parent || !allowedOrigins.includes(e.origin)) return;
+  if (boot && e.data?.channel !== boot.channel) return;
+  if (e.data?.type === "hello") parentOrigin = e.origin;
+  if (parentOrigin !== e.origin) return;
+  void handle(e.data);
+};
+if (boot?.kind !== "webview") window.addEventListener("message", message);
 document.addEventListener("mousemove", move, true);
+document.addEventListener("mousedown", down, true);
+document.addEventListener("mouseup", up, true);
 document.addEventListener("click", click, true);
 document.addEventListener("keydown", keydown, true);
-window.addEventListener(
-  "pagehide",
-  () => {
-    disposed = true;
-    overlay.remove();
-    window.removeEventListener("message", message);
-    document.removeEventListener("mousemove", move, true);
-    document.removeEventListener("click", click, true);
-    document.removeEventListener("keydown", keydown, true);
-  },
-  { once: true },
-);
+window.addEventListener("resize", scheduleWatch);
+document.addEventListener("load", scheduleWatch, true);
+document.addEventListener("transitionend", scheduleWatch, true);
+const dispose = () => {
+  disposed = true;
+  overlay.remove();
+  observer.disconnect();
+  clearTimeout(watchTimer);
+  window.removeEventListener("message", message);
+  document.removeEventListener("mousemove", move, true);
+  document.removeEventListener("mousedown", down, true);
+  document.removeEventListener("mouseup", up, true);
+  document.removeEventListener("click", click, true);
+  document.removeEventListener("keydown", keydown, true);
+  window.removeEventListener("resize", scheduleWatch);
+  document.removeEventListener("load", scheduleWatch, true);
+  document.removeEventListener("transitionend", scheduleWatch, true);
+  window.removeEventListener("pagehide", dispose);
+  if (globals.__DSH_VE_DISPOSE__ === dispose) delete globals.__DSH_VE_DISPOSE__;
+  if (boot?.kind === "webview") delete (window as any)[boot.key];
+};
+globals.__DSH_VE_DISPOSE__ = dispose;
+if (boot?.kind === "webview")
+  (window as any)[boot.key] = {
+    command: handle,
+    take: () => events.splice(0),
+    dispose,
+  };
+window.addEventListener("pagehide", dispose, { once: true });

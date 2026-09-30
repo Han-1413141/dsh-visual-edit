@@ -28,6 +28,7 @@ await build({
   minify: true,
   legalComments: "inline",
 });
+const inspectorSource = await readFile("lib/inspector.js", "utf8");
 const client = await build({
   entryPoints: ["src/client/index.tsx"],
   write: false,
@@ -39,6 +40,21 @@ const client = await build({
   external: ["react"],
   loader: { ".css": "text" },
   legalComments: "inline",
+  plugins: [
+    {
+      name: "embedded-inspector",
+      setup(build) {
+        build.onResolve({ filter: /^virtual:visual-edit-inspector$/ }, () => ({
+          path: "inspector",
+          namespace: "embedded",
+        }));
+        build.onLoad({ filter: /.*/, namespace: "embedded" }, () => ({
+          contents: `export default ${JSON.stringify(inspectorSource)}`,
+          loader: "js",
+        }));
+      },
+    },
+  ],
 });
 const output = `window.__ModuleLoader__.load({id:"dsh-visual-edit",factory(require){const module={exports:{}};const exports=module.exports;\n${client.outputFiles[0].text}\nreturn module.exports;}});\n`;
 const bytes = Buffer.byteLength(output);

@@ -52,6 +52,12 @@ export function ImageCard({
           </p>
         </div>
       )}
+      {snapshot.viewportChanged && (
+        <p className="ve-hint">{t("viewportChanged")}</p>
+      )}
+      {snapshot.fallbackRegion && (
+        <p className="ve-hint">{t("fallbackRegion")}</p>
+      )}
     </figure>
   );
 }

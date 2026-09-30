@@ -1,6 +1,7 @@
 import {
   MAX_NOTES,
   validSnapshot,
+  snapshotUrl,
   type ReviewNote,
   type Snapshot,
 } from "./model";
@@ -58,12 +59,11 @@ function snapshot(value: unknown): Snapshot {
     (value.image && !boundedPng(value.image))
   )
     throw new Error("invalidBackup");
-  const url = new URL(value.url);
   const { selector, tag, id, testId, source } = value.locator;
   // Only known fields enter storage, and query/hash data stays out of exports
   // and feedback even when an imported file was authored elsewhere.
   return {
-    url: url.origin + url.pathname,
+    url: snapshotUrl(value.url),
     pageKey: value.pageKey,
     capturedAt: new Date(value.capturedAt).toISOString(),
     viewport: { width: value.viewport.width, height: value.viewport.height },
@@ -92,6 +92,34 @@ function snapshot(value: unknown): Snapshot {
     styles: Object.fromEntries(Object.entries(value.styles)),
     ...(value.image ? { image: value.image } : {}),
     ...(value.warning ? { warning: value.warning } : {}),
+    ...(value.visualKey ? { visualKey: value.visualKey } : {}),
+    ...(value.scroll
+      ? { scroll: { x: value.scroll.x, y: value.scroll.y } }
+      : {}),
+    ...(value.viewportChanged ? { viewportChanged: true } : {}),
+    ...(value.fallbackRegion ? { fallbackRegion: true } : {}),
+    ...(value.annotation
+      ? {
+          annotation: {
+            kind: value.annotation.kind,
+            region: {
+              x: value.annotation.region.x,
+              y: value.annotation.region.y,
+              width: value.annotation.region.width,
+              height: value.annotation.region.height,
+            },
+            ...(value.annotation.kind === "arrow"
+              ? {
+                  from: {
+                    x: value.annotation.from.x,
+                    y: value.annotation.from.y,
+                  },
+                  to: { x: value.annotation.to.x, y: value.annotation.to.y },
+                }
+              : {}),
+          } as Snapshot["annotation"],
+        }
+      : {}),
   };
 }
 export function parseBackup(input: string): Backup {
@@ -139,8 +167,9 @@ export function parseBackup(input: string): Backup {
       (["review", "confirmed"].includes(raw.status as string) && !after) ||
       (after &&
         (after.pageKey !== before.pageKey ||
-          after.viewport.width !== before.viewport.width ||
-          after.viewport.height !== before.viewport.height))
+          (!after.viewportChanged &&
+            (after.viewport.width !== before.viewport.width ||
+              after.viewport.height !== before.viewport.height))))
     )
       throw new Error("invalidBackup");
     return {

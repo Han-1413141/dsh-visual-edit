@@ -1,4 +1,46 @@
-# Validation record
+# Validation record: v0.5.0
+
+Date: **2026-09-30**. Windows, Node **24.19.0**, DSH **0.2.0-rc.2**, Chromium. Native checks used an isolated test workspace/profile and never submitted a request to a model.
+
+## Checks for this change
+
+- TypeScript strict checking and all four production builds.
+- **11 unit tests**: original source/prompt/backup boundaries plus native HTML coordinates, native resource references, annotation coordinates and flagged viewport changes in backups.
+- **19 Chromium scenarios**: the 11 legacy workflows, a Browser transport adapter, plus native HTML selection, opaque static preview, channel isolation, arrow and rectangle gestures, one-click insertion, automatic comparison across renderer replacement and DOM updates, ignoring unrelated changes, stopping after confirmation, and manual capture after deleting an element/resizing the viewport.
+- Annotation tests decode the output PNG and check page text/background pixels, not merely the presence of an image URL.
+- Production demo build verifies that neither the inspector nor source metadata is shipped.
+
+## Real DSH HTML preview
+
+The actual DSH Web application loaded the built plugin from its isolated profile. Its original HTML renderer, native resource API, and native composer were used. A test-only wrapper exposed the plugin context for opening the fixture resource; that wrapper is excluded from the production bundle.
+
+Verified: no conversation-header action; three mode controls in the preview; element capture with original HTML source location; one-click insertion into the native composer; editing the actual HTML file on disk; the host automatically refreshing that resource; a before/after comparison appearing without a capture-button click; and opening the enlarged comparison. The run reported **zero page errors**.
+
+[Preview toolbar](images/native-modes.png) · [Automatic comparison](images/native-auto-compare.png) · [Enlarged comparison](images/native-auto-compare-expanded.png)
+
+The file change was made by the test driver. This verifies integration and comparison, not model behavior. The new screenshots are from real DSH Web, not a test fixture. Desktop installation and Electron Browser verification are recorded separately below.
+
+## Local desktop
+
+The Browser transport adapter exercises inspector injection through the webview method contract, event polling, draft insertion, DOM-change capture, and reconnect after navigation. It does not emulate Electron process isolation or verify a real desktop shell. Real Electron Browser interaction is outside the Web verification above.
+
+## Reproduce
+
+```sh
+npm ci
+npm run build
+npm run typecheck
+npm test
+npx playwright install chromium
+npm run test:browser
+npm run demo:build
+```
+
+GitHub Actions runs the checks on Windows and Ubuntu. Its status is the source of truth for the published commit. Private test profiles, tokens, generated feedback records, and desktop backups are excluded from Git.
+
+---
+
+# Earlier validation: v0.3.0
 
 Date: **2026-09-30**. Plugin version: **0.3.0**. Host integration was checked against **DSH 0.2.0-rc.2 Web**, running in an isolated `DSH_HOME`. No changes were made to the user's normal DSH profile. No model credentials were required for the plugin checks.
 
