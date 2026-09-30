@@ -1,0 +1,181 @@
+.ve-native {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  min-width: 0;
+  isolation: isolate;
+  overflow: hidden;
+  white-space: normal;
+  font-family: var(
+    --dsw-font-family,
+    "Segoe UI",
+    "Microsoft YaHei",
+    sans-serif
+  );
+  color: var(--dsw-alias-label-primary, #111);
+}
+.ve-native-page {
+  width: 100%;
+  height: 100%;
+}
+.ve-native-page > iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.ve-native-browser > .ve-native-page > div > form {
+  padding-right: 98px;
+}
+.ve-native-browser-action {
+  position: absolute;
+  right: 6px;
+  top: 5px;
+  z-index: 2;
+}
+.ve-native-toggle,
+.ve-native-heading button,
+.ve-native-picking button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--dsw-radius-sm, 8px);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #61666b);
+  font: 12px/18px
+    var(--dsw-font-family, "Segoe UI", "Microsoft YaHei", sans-serif);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ve-native-toggle:hover:enabled,
+.ve-native-heading button:hover,
+.ve-native-picking button:hover {
+  background: var(--dsw-alias-interactive-bg-hover, #eee);
+}
+.ve-native-toggle[aria-pressed="true"] {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  background: var(--dsw-alias-interactive-bg-active, #edf2ff);
+}
+.ve-native-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ve-native-toggle:focus-visible,
+.ve-native-heading button:focus-visible,
+.ve-native-picking button:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #4176e6);
+  outline-offset: 1px;
+}
+.ve-native-drawer {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  width: min(400px, calc(100% - 20px));
+  max-height: calc(100% - 58px);
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l3, #ddd);
+  border-radius: var(--dsw-radius-md, 12px);
+  box-shadow: 0 4px 24px #0002;
+  background: var(--dsw-alias-bg-base, #fff);
+}
+.ve-native-drawer[hidden] {
+  display: none;
+}
+.ve-native-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 36px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l3, #ddd);
+  font: 12px/18px
+    var(--dsw-font-family, "Segoe UI", "Microsoft YaHei", sans-serif);
+}
+.ve-native-heading strong {
+  font-weight: 500;
+  flex: 1;
+}
+.ve-native-heading button {
+  width: 28px;
+  padding: 0;
+}
+.ve-native-drawer > .ve-root {
+  flex: 1;
+  height: auto;
+}
+.ve-native-picking {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 3px 5px 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l3, #ddd);
+  border-radius: var(--dsw-radius-sm, 8px);
+  background: var(--dsw-alias-bg-base, #fff);
+  box-shadow: 0 2px 10px #0001;
+  font-size: 12px;
+  line-height: 18px;
+}
+.ve-native-browser > .ve-native-picking {
+  top: 46px;
+}
+.ve-native-picking > svg {
+  flex-shrink: 0;
+}
+
+.ve-native-picking button[aria-pressed="true"] {
+  color: var(--dsw-alias-state-business-primary, #4176e6);
+  background: var(--dsw-alias-interactive-bg-active, #edf2ff);
+}
+.ve-native-picking {
+  padding: 4px;
+  gap: 2px;
+}
+.ve-native-picking button:last-child {
+  margin-left: 4px;
+  border-left: 1px solid var(--dsw-alias-border-l3, #ddd);
+  border-radius: 0 6px 6px 0;
+}
+.ve-auto-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 10px 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #666);
+  border-bottom: 1px solid var(--dsw-alias-border-l3, #ddd);
+}
+.ve-auto-status svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ve-native-drawer .ve-selection footer {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ve-native-drawer .ve-selection footer small {
+  display: none;
+}
+.ve-native-drawer .ve-selection footer .ve-primary {
+  flex-basis: 100%;
+  justify-content: center;
+}
+.ve-native-drawer .ve-feedback .ve-comparison {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}

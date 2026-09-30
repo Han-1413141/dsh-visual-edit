@@ -1,67 +1,59 @@
 # Architecture
 
-Visual Edit has two entry points in one package. The DSH plugin owns feedback and review. The Vite plugin adds a development-only inspector to the web app.
+The package provides a DSH client plugin, an optional Vite development bridge, and a bundled inspector. The host `apply()` registers no model tools and reads no workspace files.
 
 ```mermaid
 flowchart LR
-  A[Local Vite + React page] -->|Source locations and selected element facts| B[DSH Visual Edit sidebar]
-  B -->|Notes and DOM snapshots| C[(Browser IndexedDB)]
-  B -->|User clicks Add to chat| D[Current DSH composer]
-  D -->|User sends| E[Existing DSH agent]
-  E -->|Normal workspace edit| F[Project source]
-  F -->|Vite HMR| A
-  A -->|User captures the result| B
+  A[Native HTML preview or desktop Browser] -->|Selection and annotation| B[Feedback overlay]
+  B -->|Request and reference metadata| C[Current DSH composer]
+  C -->|User sends| D[Existing DSH agent]
+  D -->|Workspace edit| E[Page source]
+  E -->|Host refresh or DOM update| A
+  A -->|Watched region changes| F[Automatic result capture]
+  F --> G[(Session IndexedDB)]
+  G --> B
 ```
 
-## DSH integration
+## Native integration
 
-`src/index.ts` provides an empty host `apply()`. `src/client/index.tsx` registers a right-sidebar tab, a guide entry, and an existing-conversation header action through DSH's public slot services. Registrations are owned by `ctx.effect` and are removed with the plugin. React comes from the DSH module loader. The browser build has a hard 262,144-byte size gate.
+`native-integration.tsx` shadows the public keyed document and Browser body slots at a higher priority, forwarding the original component's store, locale, and injections. `ctx.on("slots/changed")` handles late registrations. Disposing the plugin removes its registrations and controllers; no host application files are changed. React is supplied by DSH. The client bundle has a hard 262,144-byte gate.
 
-The tab requests `keepMounted` so hiding it does not intentionally reload the iframe. Each `sessionId` has its own React board, records, and preview configuration. Native composer insertion uses `captureInsertion()` followed by `insertText()`. It collapses the selected span to an insertion point, preserving selected text and unrelated draft content. Submission remains an ordinary DSH action.
+HTML contributes its toolbar action through `sidebar.right.tab.document.action`. The Browser wrapper places its action beside the existing address toolbar. No conversation-header action is registered. The optional standalone Vite tab remains a compatibility entry.
 
-The UI consumes DSH's font, color, radius, and interaction tokens, including its explicit theme preference. Preview and Feedback share a mounted iframe. Capture temporarily reveals the preview because Chromium suspends animation frames in hidden iframes; it returns to Feedback on completion or failure. The capture action locks view changes and page interaction while it runs. The standalone test adapter declares a small set of theme tokens; it does not inject those into DSH.
+One `NativeSession` is owned by the session ID and sidebar tab ID, independently of renderer mounts. HTML loading can replace its React body and iframe; the feedback controller, selected mode, unsaved selection, and monitoring survive until the tab's abort signal. Saving/cancelling consumes the selection so it cannot reappear after a reload and block result capture.
 
-Snapshot comparison uses a native modal dialog with keyboard dismissal and focus restoration. Overlay mode aligns stored images at the top left and preserves their relative dimensions. It neither recaptures the page nor uploads images.
+HTML is instrumented in memory with original relative file/line/column locations. Interactive mode forwards the prepared bytes to the host renderer and retains its resource handling and permissions. Static mode sanitizes the HTML and uses an opaque sandbox with a nonce policy allowing only the bundled inspector. The page's own scripts remain blocked.
 
-## Source mapping
+The desktop Browser uses the existing Electron webview's `executeJavaScript`, with a random API key, channel, exact page URL guard, navigation generation, and bounded event queue. A main-frame navigation invalidates pending work. Loading the new document rearms monitoring. A small polling loop retrieves inspector events only while the tab is visible and editing or monitoring is active.
 
-The Vite plugin parses local `.jsx` and `.tsx` files before React transforms them. It adds a `data-dsh-ve-source` attribute to lowercase DOM tags using an AST and MagicString, with a source map. Custom component tags are not annotated. `node_modules`, files outside Vite's root, and non-JSX files are excluded. Physical source files are never rewritten by the plugin.
+## Selection and images
 
-The metadata contains a relative path, line, and column. A nested element can inherit the nearest annotated ancestor's source location; it is a starting point for the agent to inspect, not a declaration that a CSS rule is defined at that line. CSS rule provenance is not included.
+Element selection uses a unique ID, unique test ID, or bounded CSS path. Locator validation also checks the tag and available source identity. Native unique selectors without positional pseudo-classes tolerate moved source lines; ambiguous positional identities still fall back. When native capture cannot establish the original element, it captures the original document region and sets an explicit fallback flag. Changed viewport dimensions are allowed in native mode and labeled. Legacy iframe mode retains its strict URL/viewport/element checks.
 
-The plugin uses `apply: 'serve'`. It serves a local inspector script and inserts a script tag into the development HTML. It does not proxy the website. Relative API requests continue to resolve against the app's own origin.
+Arrow and rectangle gestures record document coordinates. An arrow also records the endpoint's element locator. `annotation.ts` crops the page DOM into the selected region while preserving original layout dimensions, then draws the annotation. Native element snapshots use a page crop too, retaining ancestor backgrounds so light text on gradients stays visible. Computed animation/transition appearance is frozen inside the image clone so entrance animations do not restart invisibly. Output is capped at 1600 pixels per dimension and 650,000 data-URL characters.
 
-## Bridge and element matching
+Snapshots omit form/editable/private descendants and skip external web fonts. Rendering failure retains available metadata with an explanation. They are DOM renders, not pixel-exact screenshots; child iframes, Shadow DOM, canvas/WebGL and remote resources have limits.
 
-The parent validates `event.source`, the configured preview origin, the protocol, a random connection channel, and bounded snapshot data. The inspector accepts only messages from `window.parent`, an exact allowlisted DSH origin, and the active channel. Connection retries and capture requests have timeouts. React teardown clears message listeners, timers, and pending captures.
+## Automatic comparison
 
-The inspector prefers a unique ID, then a unique `data-testid`, then a unique DOM path. A result capture requires the same full-URL hash and viewport. It verifies the target's tag, ID/test ID, and source file. Without a stable ID/test ID, the source line and column must still match. Reordered data-driven lists can reuse both a DOM position and a JSX source location; stable business IDs remain the app author's responsibility.
+After composer insertion succeeds, notes become queued. The controller reads queued/review records for the current page, then sends only these targets to the inspector. A debounced mutation observer computes bounded fingerprints of selected subtrees or regions: direct text, geometry, computed styles and image references. Overlay mutations and private content are excluded. Changes outside the selected target do not request its capture.
 
-## Snapshots
+A changed fingerprint emits target IDs. The controller serializes captures, retains the original baseline, and saves the latest after snapshot using the note's expected revision. Confirmed/deleted/edited notes cannot be overwritten by a stale capture. BroadcastChannel updates the visible board and other clients. The view moves to the updated comparison; manual result capture uses the same controller and remains available.
 
-`html-to-image` renders a selected DOM element to a PNG. It retains the element's own background while compositing against the body background. It omits form/editable/private descendants and does not embed web fonts. Oversized elements, excessive image data, disconnected nodes, and rendering failures produce visible errors or metadata-only captures.
+Monitoring is page scoped, pauses when the preview is hidden, and stops for confirmed notes. It responds to DOM/file refreshes, not an inferred model-completion signal. A runtime error is shown and the next page change/reload or manual capture can retry.
 
-PNG data is local. Agent feedback contains a human request and labeled reference data: public URL path, viewport, source location, selector, text, and a small set of computed styles. Page content is explicitly labeled as untrusted reference data. URL query/hash values and PNG bytes are omitted.
+## Composer and storage
 
-## Storage and state
+The one-click action saves the feedback, calls DSH's `captureInsertion()` and `insertText()`, then queues the saved revision. It preserves existing draft text and does not send the conversation automatically. If insertion succeeds but storing the queued state fails, the UI reports that distinction to avoid duplicate insertion.
 
-IndexedDB `dsh-visual-edit-v1` contains `notes` (key: session + note ID) and `boards` (key: session). Notes use optimistic revision checks in a read/write transaction. A stale writer aborts and reloads the latest record. A `BroadcastChannel` tells other tabs to refresh. Fifty notes per session limit storage growth; each snapshot has an independent image-size cap.
+IndexedDB `dsh-visual-edit-v1` stores notes by session and ID, plus legacy preview configuration. Updates use revision checks; batches and restores use atomic transactions. The 50-note/session limit bounds growth. No cloud storage is introduced.
 
-The editor keeps the revision from the moment editing began, separate from the refreshed list. A broadcast cannot silently update that revision and overwrite newer content. Conflicts retain unsaved text and require an explicit reload before saving. A synchronous action lock prevents repeated in-flight writes. Composer insertion checks the note revision before writing and reports separately if the text was inserted but saving its status failed. Notes retain their original creation order when their status changes. Version 0.2.0 retains the 0.1.0 storage schema and bridge protocol.
+Backups retain the v1 format with optional annotation, scroll, fingerprint, viewport-change, and fallback fields. Validation bounds points/regions and checks image signature/IHDR dimensions before decoding. Only known fields enter storage. Duplicate IDs are skipped; imported queued notes become drafts. Restoring never opens referenced pages or submits requests.
 
-Version 0.3.0 uses the same schema and protocol. Batch selection retains full selected revisions; a broadcast does not replace these with newer notes. The source-linked prompt contains one shared instruction block. `queueNotes()` checks and updates every selected record inside one IndexedDB transaction. A single stale revision aborts the whole status update. Composer insertion remains outside that transaction, so the UI explicitly reports an inserted prompt whose status update failed.
+## Boundaries
 
-States have narrow meanings:
+Opaque HTML frames are accepted only from their exact window, null origin and random channel. The legacy Vite bridge requires its configured parent origin; the standalone preview permits only loopback HTTP(S) pages on a different origin from DSH. Snapshot references may also represent native DSH file-resource addresses without granting new filesystem access.
 
-| State | Meaning |
-|---|---|
-| Draft | A feedback record was saved or edited |
-| Added to composer | Text was successfully inserted into the native draft |
-| Needs review | A current element snapshot was recorded |
-| Confirmed | The user accepted the recorded result |
+Agent feedback includes user requests and labeled reference data: public URL path, viewport, source, locator, text, selected styles, annotation and bounds. It excludes PNG bytes and URL query/hash values. Page text is explicitly identified as reference data rather than instructions.
 
-Editing a note clears its previous result and preserves its original baseline. Capturing a result replaces the previous result for that note. The product is a two-snapshot review board, not a version-control system or an unlimited screenshot history.
-
-Export is a local JSON download containing notes and images. The 0.3.0 importer accepts the same `dsh-visual-edit/v1` format used by prior versions. It checks the 70 MB file limit, note bounds and uniqueness, status/date/source metadata, comparison compatibility, and PNG signature/IHDR dimensions before presenting a preview. Only known fields enter storage; URL query/hash values are removed from imported snapshots and from generated feedback. The parser does not fetch referenced pages or images.
-
-`importNotes()` reads the destination session and adds new IDs in one read/write transaction. Existing IDs are skipped, the 50-note limit is checked against the current records, and any failure aborts the entire import. Imported revisions start at zero. Queued records become drafts because the target composer is independent of the backup; other recorded review states and images remain. Preview configuration is not imported. There is no cloud synchronization. Removing the plugin does not delete browser data. Deleting a note removes its two stored snapshots after an inline confirmation.
+The Vite plugin annotates JSX/TSX through the normal development transform using Babel and MagicString; it excludes dependencies and files outside the project root. It never rewrites source files. Production builds contain neither the bridge nor its source markers.

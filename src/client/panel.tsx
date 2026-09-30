@@ -44,6 +44,20 @@ export interface PanelProps {
   sessionId: string;
   t: Translate;
   inputActions?: InputActions;
+  external?: Pick<
+    ReturnType<typeof useBridge>,
+    "status" | "picking" | "pick" | "startPick" | "highlight" | "capture"
+  > & {
+    available: boolean;
+    selection?: Snapshot;
+    error?: string;
+    comment?: string;
+    setComment?(comment: string): void;
+    clearSelection?(): void;
+    autoStatus?: "waiting" | "capturing" | "updated" | "error";
+    autoError?: string;
+    reviewId?: string;
+  };
 }
 type View = "preview" | "feedback";
 const NEXT: Record<ReviewNote["status"], CopyKey> = {
@@ -89,7 +103,7 @@ function Source({
 export function VisualEditPanel(props: PanelProps) {
   return <Board key={props.sessionId} {...props} />;
 }
-function Board({ sessionId, inputActions, t }: PanelProps) {
+function Board({ sessionId, inputActions, t, external }: PanelProps) {
   const uid = useId();
   const [notes, setNotes] = useState<ReviewNote[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -98,7 +112,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
   const [url, setUrl] = useState("");
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");
   const [actualSize, setActualSize] = useState(false);
-  const [view, setView] = useState<View>("preview");
+  const [view, setView] = useState<View>(external ? "feedback" : "preview");
   const [selected, setSelected] = useState<Snapshot>();
   const [comment, setComment] = useState("");
   const [editing, setEditing] = useState<ReviewNote>();
@@ -121,6 +135,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
   const stage = useRef<HTMLDivElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
+  const comparison = useRef<HTMLDivElement>(null);
   const alive = useRef(true);
   const broadcast = useRef<BroadcastChannel>();
   const [stageWidth, setStageWidth] = useState(500);
@@ -129,9 +144,9 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     if (alive.current)
       setNotice({ key: key in en ? (key as CopyKey) : "error", error: true });
   }
-  const bridge = useBridge(
+  const frameBridge = useBridge(
     frame,
-    url,
+    external ? "" : url,
     (s) => {
       setSelected(s);
       setComment("");
@@ -141,6 +156,24 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     },
     reportError,
   );
+  const bridge = external ? { ...frameBridge, ...external } : frameBridge;
+  useEffect(() => {
+    if (!external?.selection) return;
+    setSelected(external.selection);
+    setComment(external.comment ?? "");
+    setEditing(undefined);
+    setNotice(undefined);
+    setView("preview");
+  }, [external?.selection]);
+  useEffect(() => {
+    if (external?.reviewId) {
+      setActive(external.reviewId);
+      setView("feedback");
+    }
+  }, [external?.reviewId]);
+  useEffect(() => {
+    if (external?.error) reportError(external.error);
+  }, [external?.error]);
   useEffect(() => {
     alive.current = true;
     readBoard(sessionId)
@@ -201,6 +234,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     if (bridge.picking) bridge.pick();
   }
   function cancelEdit() {
+    external?.clearSelection?.();
     setSelected(undefined);
     setEditing(undefined);
     setComment("");
@@ -264,13 +298,13 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     });
     setViewport(value);
   }
-  function save(event?: FormEvent, continuePicking = false) {
+  function save(event?: FormEvent, continuePicking = false, insert = false) {
     event?.preventDefault();
     void run(async () => {
       if (!selected) return;
       const newNote = createNote(sessionId, selected, comment);
       // Use the revision captured when editing began, even after a broadcast refresh.
-      await store(
+      const saved = await store(
         editing
           ? {
               ...editing,
@@ -287,6 +321,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
       changeView(continuePicking ? "preview" : "feedback");
       if (continuePicking) bridge.startPick();
       setNotice({ key: "saved", error: false });
+      if (insert) await insertNotes([saved]);
     }, "save");
   }
   async function copy(text: string, key: CopyKey = "copied") {
@@ -294,37 +329,38 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     setNotice({ key, error: false });
   }
   function addToChat(items: ReviewNote[]) {
-    return run(async () => {
-      if (!inputActions || !items.length) throw new Error("inputBusy");
-      const span = inputActions.captureInsertion();
-      const latest = (await readBoard(sessionId)).notes;
-      if (
-        items.some(
-          (note) =>
-            note.sessionId !== sessionId ||
-            note.status === "confirmed" ||
-            latest.find((n) => n.id === note.id)?.revision !== note.revision,
-        )
+    return run(() => insertNotes(items));
+  }
+  async function insertNotes(items: ReviewNote[]) {
+    if (!inputActions || !items.length) throw new Error("inputBusy");
+    const span = inputActions.captureInsertion();
+    const latest = (await readBoard(sessionId)).notes;
+    if (
+      items.some(
+        (note) =>
+          note.sessionId !== sessionId ||
+          note.status === "confirmed" ||
+          latest.find((n) => n.id === note.id)?.revision !== note.revision,
       )
-        throw new Error("storageConflict");
-      if (!alive.current) return;
-      if (
-        !inputActions.insertText(`\n\n${feedbackText(items)}\n`, {
-          ...span,
-          end: span.start,
-        })
-      )
-        throw new Error("inputBusy");
-      try {
-        await queueNotes(items);
-        await refresh();
-        broadcast.current?.postMessage("updated");
-        setNotice({ key: "added", error: false });
-      } catch {
-        await refresh().catch(() => {});
-        setNotice({ key: "insertedNotSaved", error: true });
-      }
-    });
+    )
+      throw new Error("storageConflict");
+    if (!alive.current) return;
+    if (
+      !inputActions.insertText(`\n\n${feedbackText(items)}\n`, {
+        ...span,
+        end: span.start,
+      })
+    )
+      throw new Error("inputBusy");
+    try {
+      await queueNotes(items);
+      await refresh();
+      broadcast.current?.postMessage("updated");
+      setNotice({ key: external ? "addedAuto" : "added", error: false });
+    } catch {
+      await refresh().catch(() => {});
+      setNotice({ key: "insertedNotSaved", error: true });
+    }
   }
   function restore(backup: Backup) {
     return run(async () => {
@@ -349,6 +385,24 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
         .includes(search.toLocaleLowerCase()),
   );
   const current = matching.find((n) => n.id === active) ?? matching[0];
+  useEffect(() => {
+    if (!external || selected || !current?.after) return;
+    const request = requestAnimationFrame(() => {
+      const parent = scroll.current,
+        target = comparison.current;
+      if (parent && target)
+        parent.scrollTo({
+          top:
+            parent.scrollTop +
+            target.getBoundingClientRect().top -
+            parent.getBoundingClientRect().top -
+            8,
+        });
+    });
+    return () => cancelAnimationFrame(request);
+  // Reveal a newly available comparison once; live clocks must not pull the
+  // reader back down every time the existing after image is refreshed.
+  }, [external?.reviewId, current?.id, !!current?.after, selected]);
   const confirmedCount = notes.filter((n) => n.status === "confirmed").length;
   const editConflict =
     editing &&
@@ -365,7 +419,9 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
   const changes = current?.after
     ? compareSnapshots(current.before, current.after)
     : [];
-  const ready = bridge.status === "ready";
+  const ready = external ? external.available : bridge.status === "ready";
+  const newFeedback = () =>
+    external ? bridge.startPick() : changeView("preview");
   const handleTabKeys = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
@@ -380,99 +436,103 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
   return (
     <section className="ve-root" aria-label={t("title")}>
       <style>{styles}</style>
-      <form className="ve-address" onSubmit={open}>
-        <Icon name="globe" />
-        <input
-          aria-label={t("url")}
-          value={draftUrl}
-          onChange={(e) => setDraftUrl(e.target.value)}
-          placeholder="http://localhost:5173"
-          spellCheck={false}
-          required
-          disabled={!!selected}
-        />
-        <button
-          type="submit"
-          className="ve-icon"
-          title={t("connect")}
-          aria-label={t("connect")}
-          disabled={busy || !loaded || !!selected}
-        >
-          <Icon name="arrow" />
-        </button>
-        <button
-          type="button"
-          className="ve-icon"
-          title={t("reload")}
-          aria-label={t("reload")}
-          disabled={!url || busy || !!selected}
-          onClick={() => {
-            if (frame.current) frame.current.src = url;
-          }}
-        >
-          <Icon name="refresh" />
-        </button>
-        <button
-          type="button"
-          className="ve-icon"
-          title={t("setup")}
-          aria-label={t("setup")}
-          aria-expanded={showSetup}
-          onClick={() => setShowSetup(!showSetup)}
-        >
-          <Icon name="help" />
-        </button>
-      </form>
-      <div className="ve-navigation">
-        <div className="ve-tabs" role="tablist" aria-label={t("title")}>
-          <button
-            role="tab"
-            data-view="preview"
-            disabled={busyAction === "capture"}
-            id={`${uid}-preview-tab`}
-            aria-selected={view === "preview"}
-            tabIndex={view === "preview" ? 0 : -1}
-            onKeyDown={handleTabKeys}
-            onClick={() => changeView("preview")}
-          >
+      {!external && (
+        <>
+          <form className="ve-address" onSubmit={open}>
             <Icon name="globe" />
-            {t("previewTab")}
-          </button>
-          <button
-            role="tab"
-            data-view="feedback"
-            disabled={busyAction === "capture"}
-            id={`${uid}-feedback-tab`}
-            aria-selected={view === "feedback"}
-            tabIndex={view === "feedback" ? 0 : -1}
-            onKeyDown={handleTabKeys}
-            onClick={() => changeView("feedback")}
-          >
-            <Icon name="notes" />
-            {t("feedbackTab")}
-            <span className="ve-count">{notes.length}</span>
-          </button>
-        </div>
-        <span
-          className={`ve-connection ${ready ? "is-ready" : ""}`}
-          title={t(
-            ready
-              ? "ready"
-              : bridge.status === "connecting"
-                ? "loading"
-                : "disconnected",
-          )}
-        >
-          <i />
-          {t(
-            ready
-              ? "ready"
-              : bridge.status === "connecting"
-                ? "loading"
-                : "disconnected",
-          )}
-        </span>
-      </div>
+            <input
+              aria-label={t("url")}
+              value={draftUrl}
+              onChange={(e) => setDraftUrl(e.target.value)}
+              placeholder="http://localhost:5173"
+              spellCheck={false}
+              required
+              disabled={!!selected}
+            />
+            <button
+              type="submit"
+              className="ve-icon"
+              title={t("connect")}
+              aria-label={t("connect")}
+              disabled={busy || !loaded || !!selected}
+            >
+              <Icon name="arrow" />
+            </button>
+            <button
+              type="button"
+              className="ve-icon"
+              title={t("reload")}
+              aria-label={t("reload")}
+              disabled={!url || busy || !!selected}
+              onClick={() => {
+                if (frame.current) frame.current.src = url;
+              }}
+            >
+              <Icon name="refresh" />
+            </button>
+            <button
+              type="button"
+              className="ve-icon"
+              title={t("setup")}
+              aria-label={t("setup")}
+              aria-expanded={showSetup}
+              onClick={() => setShowSetup(!showSetup)}
+            >
+              <Icon name="help" />
+            </button>
+          </form>
+          <div className="ve-navigation">
+            <div className="ve-tabs" role="tablist" aria-label={t("title")}>
+              <button
+                role="tab"
+                data-view="preview"
+                disabled={busyAction === "capture"}
+                id={`${uid}-preview-tab`}
+                aria-selected={view === "preview"}
+                tabIndex={view === "preview" ? 0 : -1}
+                onKeyDown={handleTabKeys}
+                onClick={() => changeView("preview")}
+              >
+                <Icon name="globe" />
+                {t("previewTab")}
+              </button>
+              <button
+                role="tab"
+                data-view="feedback"
+                disabled={busyAction === "capture"}
+                id={`${uid}-feedback-tab`}
+                aria-selected={view === "feedback"}
+                tabIndex={view === "feedback" ? 0 : -1}
+                onKeyDown={handleTabKeys}
+                onClick={() => changeView("feedback")}
+              >
+                <Icon name="notes" />
+                {t("feedbackTab")}
+                <span className="ve-count">{notes.length}</span>
+              </button>
+            </div>
+            <span
+              className={`ve-connection ${ready ? "is-ready" : ""}`}
+              title={t(
+                ready
+                  ? "ready"
+                  : bridge.status === "connecting"
+                    ? "loading"
+                    : "disconnected",
+              )}
+            >
+              <i />
+              {t(
+                ready
+                  ? "ready"
+                  : bridge.status === "connecting"
+                    ? "loading"
+                    : "disconnected",
+              )}
+            </span>
+          </div>
+        </>
+      )}
       {notice && (
         <div
           className={`ve-notice ${notice.error ? "ve-error" : ""}`}
@@ -496,7 +556,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
         </button>
       )}
       <div className="ve-scroll" ref={scroll}>
-        {(showSetup || bridge.status === "disconnected") && (
+        {!external && (showSetup || bridge.status === "disconnected") && (
           <section className="ve-setup" aria-label={t("setup")}>
             <header>
               <h3>{t("setup")}</h3>
@@ -536,137 +596,140 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
             <p>{t("setupRestart")}</p>
           </section>
         )}
-        <div
-          className={`ve-preview ${view !== "preview" ? "ve-stashed" : ""}`}
-          role="tabpanel"
-          aria-labelledby={`${uid}-preview-tab`}
-          aria-hidden={view !== "preview"}
-        >
-          <div className="ve-preview-tools">
-            <button
-              className={bridge.picking ? "ve-primary" : "ve-tool-action"}
-              aria-pressed={bridge.picking}
-              disabled={!ready || busy || !!selected}
-              onClick={bridge.pick}
-            >
-              <CursorIcon />
-              {t("pick")}
-            </button>
-            <div className="ve-preview-options">
-              <div className="ve-segment">
-                <button
-                  aria-label={t("desktop")}
-                  title={t("desktop")}
-                  aria-pressed={viewport === "desktop"}
-                  disabled={busy || !!selected}
-                  onClick={() => void run(() => changeViewport("desktop"))}
-                >
-                  <Icon name="desktop" />
-                </button>
-                <button
-                  aria-label={t("mobile")}
-                  title={t("mobile")}
-                  aria-pressed={viewport === "mobile"}
-                  disabled={busy || !!selected}
-                  onClick={() => void run(() => changeViewport("mobile"))}
-                >
-                  <Icon name="mobile" />
-                </button>
-              </div>
-              <button
-                className="ve-icon"
-                aria-label={t(actualSize ? "fit" : "actualSize")}
-                title={t(actualSize ? "fit" : "actualSize")}
-                aria-pressed={actualSize}
-                disabled={busy}
-                onClick={() => setActualSize(!actualSize)}
-              >
-                <Icon name="expand" />
-              </button>
-            </div>
-          </div>
-          {bridge.picking && (
-            <div className="ve-picking" role="status">
-              <CursorIcon width="14" height="14" />
-              {t("picking")}
-              <button onClick={bridge.pick}>{t("cancel")}</button>
-            </div>
-          )}
+        {!external && (
           <div
-            className={`ve-stage ${actualSize ? "ve-stage-actual" : ""} ${!url ? "ve-stage-empty" : ""}`}
-            ref={stage}
-            aria-busy={busyAction === "capture"}
+            className={`ve-preview ${view !== "preview" ? "ve-stashed" : ""}`}
+            role="tabpanel"
+            aria-labelledby={`${uid}-preview-tab`}
+            aria-hidden={view !== "preview"}
           >
-            {url ? (
-              <div
-                className="ve-frame-space"
-                style={{
-                  width: size.width * scale,
-                  height: size.height * scale,
-                }}
+            <div className="ve-preview-tools">
+              <button
+                className={bridge.picking ? "ve-primary" : "ve-tool-action"}
+                aria-pressed={bridge.picking}
+                disabled={!ready || busy || !!selected}
+                onClick={bridge.pick}
               >
-                <iframe
-                  ref={frame}
-                  title={t("active")}
-                  src={url}
-                  onLoad={bridge.onLoad}
-                  tabIndex={view === "preview" && !busy ? 0 : -1}
-                  sandbox="allow-scripts allow-same-origin allow-forms"
-                  referrerPolicy="no-referrer"
-                  style={{
-                    width: size.width,
-                    height: size.height,
-                    transform: `scale(${scale})`,
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="ve-empty">
-                <span className="ve-empty-icon">
-                  <Icon name="cursor" width="26" height="26" />
-                </span>
-                <h3>{t("pickFirst")}</h3>
-                <p>{t("pickFirstHint")}</p>
-                <button onClick={() => setShowSetup(true)}>
-                  {t("openDocs")}
-                  <Icon name="arrow" width="14" height="14" />
+                <CursorIcon />
+                {t("pick")}
+              </button>
+              <div className="ve-preview-options">
+                <div className="ve-segment">
+                  <button
+                    aria-label={t("desktop")}
+                    title={t("desktop")}
+                    aria-pressed={viewport === "desktop"}
+                    disabled={busy || !!selected}
+                    onClick={() => void run(() => changeViewport("desktop"))}
+                  >
+                    <Icon name="desktop" />
+                  </button>
+                  <button
+                    aria-label={t("mobile")}
+                    title={t("mobile")}
+                    aria-pressed={viewport === "mobile"}
+                    disabled={busy || !!selected}
+                    onClick={() => void run(() => changeViewport("mobile"))}
+                  >
+                    <Icon name="mobile" />
+                  </button>
+                </div>
+                <button
+                  className="ve-icon"
+                  aria-label={t(actualSize ? "fit" : "actualSize")}
+                  title={t(actualSize ? "fit" : "actualSize")}
+                  aria-pressed={actualSize}
+                  disabled={busy}
+                  onClick={() => setActualSize(!actualSize)}
+                >
+                  <Icon name="expand" />
                 </button>
+              </div>
+            </div>
+            {bridge.picking && (
+              <div className="ve-picking" role="status">
+                <CursorIcon width="14" height="14" />
+                {t("picking")}
+                <button onClick={bridge.pick}>{t("cancel")}</button>
+              </div>
+            )}
+            <div
+              className={`ve-stage ${actualSize ? "ve-stage-actual" : ""} ${!url ? "ve-stage-empty" : ""}`}
+              ref={stage}
+              aria-busy={busyAction === "capture"}
+            >
+              {url ? (
+                <div
+                  className="ve-frame-space"
+                  style={{
+                    width: size.width * scale,
+                    height: size.height * scale,
+                  }}
+                >
+                  <iframe
+                    ref={frame}
+                    title={t("active")}
+                    src={url}
+                    onLoad={bridge.onLoad}
+                    tabIndex={view === "preview" && !busy ? 0 : -1}
+                    sandbox="allow-scripts allow-same-origin allow-forms"
+                    referrerPolicy="no-referrer"
+                    style={{
+                      width: size.width,
+                      height: size.height,
+                      transform: `scale(${scale})`,
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="ve-empty">
+                  <span className="ve-empty-icon">
+                    <Icon name="cursor" width="26" height="26" />
+                  </span>
+                  <h3>{t("pickFirst")}</h3>
+                  <p>{t("pickFirstHint")}</p>
+                  <button onClick={() => setShowSetup(true)}>
+                    {t("openDocs")}
+                    <Icon name="arrow" width="14" height="14" />
+                  </button>
+                </div>
+              )}
+            </div>
+            {url && (
+              <div className="ve-preview-caption">
+                <code>
+                  {size.width} × {size.height}
+                </code>
+                <span>{Math.round(scale * 100)}%</span>
+                <span>{t("localOnly")}</span>
+              </div>
+            )}
+            {!selected && url && (
+              <div
+                className="ve-preview-hint"
+                role={busyAction === "capture" ? "status" : undefined}
+              >
+                <Icon
+                  name={busyAction === "capture" ? "refresh" : "cursor"}
+                  className={busyAction === "capture" ? "ve-spin" : undefined}
+                />
+                <span>
+                  {t(busyAction === "capture" ? "captureBusy" : "empty")}
+                </span>
               </div>
             )}
           </div>
-          {url && (
-            <div className="ve-preview-caption">
-              <code>
-                {size.width} × {size.height}
-              </code>
-              <span>{Math.round(scale * 100)}%</span>
-              <span>{t("localOnly")}</span>
-            </div>
-          )}
-          {!selected && url && (
-            <div
-              className="ve-preview-hint"
-              role={busyAction === "capture" ? "status" : undefined}
-            >
-              <Icon
-                name={busyAction === "capture" ? "refresh" : "cursor"}
-                className={busyAction === "capture" ? "ve-spin" : undefined}
-              />
-              <span>
-                {t(busyAction === "capture" ? "captureBusy" : "empty")}
-              </span>
-            </div>
-          )}
-        </div>
+        )}
         {selected && (
           <form
             className="ve-selection"
-            onSubmit={save}
+            onSubmit={(e) => save(e, false, !!external && !!inputActions)}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!busy && !editConflict) save();
+                if (!busy && !editConflict)
+                  save(undefined, false, !!external && !!inputActions);
               }
               if (e.key === "Escape") {
                 e.preventDefault();
@@ -679,7 +742,17 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
               <span className="ve-element-tag">
                 &lt;{selected.locator.tag}&gt;
               </span>
-              <strong>{t(editing ? "edit" : "selected")}</strong>
+              <strong>
+                {t(
+                  editing
+                    ? "edit"
+                    : selected.annotation?.kind === "arrow"
+                      ? "arrowMode"
+                      : selected.annotation?.kind === "region"
+                        ? "regionMode"
+                        : "selected",
+                )}
+              </strong>
               <button
                 className="ve-icon"
                 type="button"
@@ -695,7 +768,10 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
               ref={editor}
               id={`${uid}-comment`}
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={(e) => {
+                setComment(e.target.value);
+                external?.setComment?.(e.target.value);
+              }}
               placeholder={t("placeholder")}
               maxLength={3000}
               required
@@ -748,6 +824,16 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                   {t("saveContinue")}
                 </button>
               )}
+              {external && inputActions && (
+                <button
+                  type="button"
+                  className="ve-outline"
+                  disabled={busy || !comment.trim() || !!editConflict}
+                  onClick={() => save()}
+                >
+                  {t("save")}
+                </button>
+              )}
               <button
                 className="ve-primary"
                 disabled={busy || !comment.trim() || !!editConflict}
@@ -755,20 +841,54 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                 {t(
                   busyAction === "save"
                     ? "saving"
-                    : editing
-                      ? "saveEdit"
-                      : "save",
+                    : external && inputActions
+                      ? "submitCompare"
+                      : editing
+                        ? "saveEdit"
+                        : "save",
                 )}
               </button>
             </footer>
           </form>
         )}
-        {view === "feedback" && (
+        {(external ? !selected : view === "feedback") && (
           <div
             className="ve-feedback"
             role="tabpanel"
-            aria-labelledby={`${uid}-feedback-tab`}
+            aria-labelledby={external ? undefined : `${uid}-feedback-tab`}
           >
+            {external?.autoStatus && (
+              <p className="ve-auto-status" role="status">
+                <Icon
+                  name={
+                    external.autoStatus === "capturing"
+                      ? "refresh"
+                      : external.autoStatus === "updated"
+                        ? "check"
+                        : "globe"
+                  }
+                  className={
+                    external.autoStatus === "capturing" ? "ve-spin" : undefined
+                  }
+                />
+                <span>
+                  {t(
+                    external.autoStatus === "waiting"
+                      ? "autoWaiting"
+                      : external.autoStatus === "capturing"
+                        ? "autoCapturing"
+                        : external.autoStatus === "updated"
+                          ? "autoUpdated"
+                          : "autoError",
+                  )}
+                  {external.autoStatus === "error" &&
+                  external.autoError &&
+                  external.autoError in en
+                    ? ` ${t(external.autoError as CopyKey)}`
+                    : ""}
+                </span>
+              </p>
+            )}
             <div className="ve-feedback-toolbar">
               <h3>
                 {t("notes")}
@@ -780,7 +900,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                 className="ve-icon"
                 title={t("newFeedback")}
                 aria-label={t("newFeedback")}
-                onClick={() => changeView("preview")}
+                onClick={newFeedback}
               >
                 <Icon name="cursor" />
               </button>
@@ -827,8 +947,8 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                   <Icon name="notes" width="26" height="26" />
                 </span>
                 <h3>{t("startReview")}</h3>
-                <p>{t("startReviewHint")}</p>
-                <button onClick={() => changeView("preview")}>
+                <p>{t(external ? "nativeStartHint" : "startReviewHint")}</p>
+                <button onClick={newFeedback}>
                   {t("newFeedback")}
                   <Icon name="arrow" width="14" height="14" />
                 </button>
@@ -885,7 +1005,13 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                     <Icon name="locate" />
                   </button>
                 </header>
-                <p className="ve-next-step">{t(NEXT[current.status])}</p>
+                <p className="ve-next-step">
+                  {t(
+                    external && current.status === "queued"
+                      ? "autoWaiting"
+                      : NEXT[current.status],
+                  )}
+                </p>
                 <div className="ve-actions" hidden={batchMode}>
                   <button
                     className={
@@ -919,10 +1045,11 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                           const result = await bridge.capture(current.before);
                           if (
                             result.pageKey !== current.before.pageKey ||
-                            result.viewport.width !==
-                              current.before.viewport.width ||
-                            result.viewport.height !==
-                              current.before.viewport.height
+                            (!external &&
+                              (result.viewport.width !==
+                                current.before.viewport.width ||
+                                result.viewport.height !==
+                                  current.before.viewport.height))
                           )
                             throw new Error("pageOrViewportChanged");
                           await store(
@@ -945,7 +1072,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                     {t(busyAction === "capture" ? "captureBusy" : "capture")}
                   </button>
                 </div>
-                <div className="ve-comparison">
+                <div className="ve-comparison" ref={comparison}>
                   <ImageCard
                     snapshot={current.before}
                     label={t("before")}
@@ -962,7 +1089,13 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                   ) : (
                     <div className="ve-after-placeholder">
                       <Icon name="refresh" width="22" height="22" />
-                      <p>{t("captureHint")}</p>
+                      <p>
+                        {t(
+                          external && current.status === "queued"
+                            ? "autoWaiting"
+                            : "captureHint",
+                        )}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1081,7 +1214,9 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                     </div>
                   </div>
                 )}
-                <small className="ve-hint">{t("sameViewport")}</small>
+                <small className="ve-hint">
+                  {t(external ? "nativeComparisonHint" : "sameViewport")}
+                </small>
               </article>
             )}
           </div>

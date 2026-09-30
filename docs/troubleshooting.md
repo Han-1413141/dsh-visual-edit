@@ -2,12 +2,14 @@
 
 | Symptom / 现象 | Action / 处理 |
 |---|---|
-| Visual Edit is absent / 找不到入口 | Install into the profile you actually run, restart DSH, and refresh the browser. This release targets DSH 0.2.0-rc.2 Web. 确认安装的是当前启动的 profile。 |
-| Page is visible but not connected / 页面能显示，仍未连接 | Add `visualEdit()` to the app's Vite config and restart Vite. Check that `allowedOrigins` contains the exact DSH origin, including its port. `localhost` and `127.0.0.1` are different origins. 修改后点击“刷新页面”。 |
+| Visual Edit is absent / 找不到入口 | Install into the profile you actually run, restart DSH, and refresh the browser. Use DSH 0.2.0-rc.2 and the right-side preview toolbar; the conversation-header shortcut was removed. 确认安装的是当前启动的 profile。 |
+| Page is visible but not connected / 页面能显示，仍未连接 | Native HTML/desktop Browser: reload the page, then toggle Visual Edit. For the standalone compatibility tab, add `visualEdit()` to the app's Vite config and restart Vite. Check that `allowedOrigins` contains the exact DSH origin, including its port. `localhost` and `127.0.0.1` are different origins. 修改后点击“刷新页面”。 |
 | Page cannot be embedded / 页面无法嵌入 | Check the app's CSP `frame-ancestors`, `X-Frame-Options`, and HTTPS/mixed-content policy. Configure a development-only exception for the exact local DSH origin if the app permits it. Do not broadly relax production headers. |
-| Source is unavailable / 没有源码位置 | Use a local `.jsx` or `.tsx` file within Vite's root. Runtime-created DOM, other frameworks, and dependency components can lack a direct source location. Agent 可以先使用选择器和元素文字定位。 |
+| Source is unavailable / 没有源码位置 | Native HTML provides original file coordinates. For Browser JSX/TSX locations, use the optional Vite bridge on files within its root. Runtime-created DOM, other frameworks, and dependency components can lack a direct source location. Agent 可以先使用选择器和元素文字定位。 |
 | Source points to a parent / 指向父元素 | This is the nearest annotated JSX DOM ancestor. Inspect the element and its styles before editing. 样式定义的位置不一定与 JSX 相同。 |
-| Result capture rejects a page / 无法获取结果 | Restore the original URL, including query/hash, and the original Desktop/Mobile viewport. If the source moved without a stable element ID, create new feedback. |
+| Result capture rejects a page / 无法获取结果 | Native preview: keep the same page open; deleted or changed elements fall back to their original area and viewport changes are labeled. Standalone Vite: restore the original URL and viewport or create a fresh baseline. |
+| Automatic comparison is waiting / 一直等待更新 | Send the inserted DSH draft and keep the corresponding preview visible. Save alone leaves a draft. The selected area must actually change; unrelated changes do not recapture it. Confirmed notes stop monitoring. 已加入输入框不代表已经发送。 |
+| Page changes but comparison fails / 页面变化后仍未对比 | Check the message above Feedback. Reload the same preview or use Capture result to retry. Keep the native HTML auto-refresh enabled; web development servers must refresh/HMR their page. 自动获取期间不要切走预览标签。 |
 | Wrong item after list reorder / 列表重排后对象不一致 | Use stable IDs or `data-testid` on list items. A unique positional selector alone cannot prove item identity. 重新点选并建立新意见。 |
 | No image / 没有外观图片 | Private inputs, elements over 1600 × 1600, cross-origin assets, canvas, web fonts, or CSP can prevent capture. Source/text/style facts still work. These are DOM-rendered snapshots. |
 | Composer changed / 输入框冲突 | Try Add to chat again once the composer is idle. Existing draft content is preserved; the plugin does not submit it automatically. |

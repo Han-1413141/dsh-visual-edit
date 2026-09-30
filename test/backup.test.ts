@@ -144,3 +144,35 @@ test("multiple requests share one prompt and keep query, hash and PNG bytes out"
   for (const privateValue of ["secret=value", "#private", "base64"])
     assert(!text.includes(privateValue));
 });
+
+test("annotation backups retain bounded document coordinates and explicit viewport differences", () => {
+  const original = {
+    ...note(),
+    before: {
+      ...sample,
+      annotation: {
+        kind: "arrow" as const,
+        region: { x: 10, y: 20, width: 200, height: 100 },
+        from: { x: 20, y: 30 },
+        to: { x: 180, y: 90 },
+      },
+      scroll: { x: 0, y: 30 },
+    },
+    after: {
+      ...sample,
+      viewportChanged: true,
+      fallbackRegion: true,
+      viewport: { width: 800, height: 700 },
+    },
+  };
+  assert.deepEqual(parseBackup(serializeBackup([original])).notes[0], original);
+  assert(feedbackText([original]).includes('"kind": "arrow"'));
+  const invalid = {
+    ...original,
+    before: {
+      ...original.before,
+      annotation: { ...original.before.annotation, to: { x: 10000, y: 0 } },
+    },
+  };
+  assert.throws(() => parseBackup(serializeBackup([invalid])), /invalidBackup/);
+});

@@ -1,4 +1,33 @@
 export const en = {
+  selectionMode: "Selection mode",
+  elementMode: "Element",
+  arrowMode: "Arrow",
+  regionMode: "Rectangle",
+  arrowHint: "Drag an arrow to point at a change · Esc to cancel",
+  regionHint: "Drag a rectangle around any area · Esc to cancel",
+  submitCompare: "Add to chat & compare",
+  addedAuto:
+    "Added to the composer. Send it in DSH; the preview will compare changes automatically.",
+  autoWaiting:
+    "Waiting for the selected area to change. Comparison will appear here automatically.",
+  autoCapturing: "Page updated. Capturing the result…",
+  autoUpdated: "Comparison updated. Review the before and after snapshots.",
+  autoError:
+    "Automatic comparison paused. Reload the preview or capture the result to retry.",
+  nativeComparisonHint:
+    "The result updates with the page until you confirm it.",
+  viewportChanged:
+    "The preview size changed; compare these snapshots with that in mind.",
+  fallbackRegion:
+    "The original element could not be identified. Showing its original area instead.",
+  nativeEnter: "Visual Edit",
+  nativeExit: "Exit Visual Edit",
+  nativeStartHint:
+    "Select an element, draw an arrow, or drag a rectangle to describe a change.",
+  nativeUnavailable:
+    "Open an HTML preview or load a page in the desktop Browser first.",
+  nativeConnectionFailed:
+    "The page did not connect. Reload the preview and try again.",
   saveContinue: "Save & pick another",
   selectSeveral: "Select multiple",
   finishSelecting: "Done selecting",
@@ -159,7 +188,7 @@ export const en = {
     "The locator now points to a different element. Select it again.",
   pageOrViewportChanged:
     "Restore the original page address and viewport before capturing the result.",
-  timeout: "The page did not respond. Check the Vite bridge and try again.",
+  timeout: "The page did not respond. Reload the preview and try again.",
   inputBusy: "The composer is busy or changed. Try adding the feedback again.",
   bridgeMessage: "The page returned a message this version cannot use.",
   setupCode: "Vite configuration",
@@ -177,6 +206,26 @@ export const en = {
   captureHint: "After the agent changes the page, capture the result here.",
 };
 export const zh: typeof en = {
+  selectionMode: "标注方式",
+  elementMode: "元素",
+  arrowMode: "箭头",
+  regionMode: "框选",
+  arrowHint: "拖动箭头指向要修改的位置 · Esc 取消",
+  regionHint: "拖动框选任意区域 · Esc 取消",
+  submitCompare: "加入对话并自动对比",
+  addedAuto: "已加入输入框。在 DSH 发送后，预览会自动对比页面变化。",
+  autoWaiting: "等待标注区域更新，前后对比会自动显示在这里。",
+  autoCapturing: "页面已更新，正在获取修改结果…",
+  autoUpdated: "对比已更新，可以查看修改前后的效果。",
+  autoError: "自动对比暂未完成，可刷新预览或点“获取修改结果”重试。",
+  nativeComparisonHint: "页面更新时会继续获取结果，直到你确认完成。",
+  viewportChanged: "预览尺寸已变化，请结合尺寸变化查看两张截图。",
+  fallbackRegion: "原元素已无法确定，当前展示它原来所在区域的画面。",
+  nativeEnter: "点选修改",
+  nativeExit: "退出点选修改",
+  nativeStartHint: "选择元素、拖动箭头或框选区域，写下需要修改的地方。",
+  nativeUnavailable: "请先打开 HTML 预览，或在桌面端浏览器中加载网页。",
+  nativeConnectionFailed: "页面连接未成功，请刷新预览后重试。",
   saveContinue: "保存并继续点选",
   selectSeveral: "批量选择",
   finishSelecting: "结束选择",
@@ -318,7 +367,7 @@ export const zh: typeof en = {
   elementMissing: "原元素已不存在或不能唯一定位，请重新点选。",
   elementChanged: "原定位指向了不同元素，请重新点选。",
   pageOrViewportChanged: "请恢复修改前的页面地址和视口，再获取结果。",
-  timeout: "页面未响应，请检查 Vite 接入后重试。",
+  timeout: "页面未响应，请刷新预览后重试。",
   inputBusy: "输入框正在提交或内容发生变化，请重新加入意见。",
   bridgeMessage: "页面返回的信息与当前版本不兼容。",
   setupCode: "Vite 配置",

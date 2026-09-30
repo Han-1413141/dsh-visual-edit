@@ -5,7 +5,7 @@ import {
   serializeBackup,
   type Backup,
 } from "../shared/backup";
-import { MAX_NOTES, type ReviewNote } from "../shared/model";
+import { MAX_NOTES, pageLabel, type ReviewNote } from "../shared/model";
 import { type Translate, type CopyKey } from "./locales";
 import { Icon } from "./icons";
 
@@ -184,8 +184,7 @@ function RestoreDialog({
             <li key={note.id}>
               <span>{note.comment}</span>
               <small>
-                {new URL(note.before.url).host}
-                {new URL(note.before.url).pathname}
+                {pageLabel(note.before.url)}
                 {ids.has(note.id) ? ` · ${t("alreadySaved")}` : ""}
               </small>
             </li>
