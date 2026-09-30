@@ -1,14 +1,15 @@
 # Validation record
 
-Date: **2026-09-30**. Host integration was checked against **DSH 0.2.0-rc.2 Web**, running in an isolated `DSH_HOME`. No changes were made to the user's normal DSH profile. No model credentials were required for the plugin checks.
+Date: **2026-09-30**. Plugin version: **0.2.0**. Host integration was checked against **DSH 0.2.0-rc.2 Web**, running in an isolated `DSH_HOME`. No changes were made to the user's normal DSH profile. No model credentials were required for the plugin checks.
 
 ## Automated checks
 
 - TypeScript strict type checking and all four builds: host, DSH client, Vite plugin, and inspector.
 - Four unit tests: local-origin validation; snapshot/path bounds; JSX instrumentation and development-only configuration; agent-feedback content with PNG exclusion.
-- Four Chromium scenarios: select → source → composer → before/after → confirm → reload/session separation; changed viewport and missing target; private input and forged-window rejection; stale revision conflict between tabs.
+- Seven Chromium scenarios: select → source → composer → before/after → confirm → reload/session separation; changed viewport and missing target; private input and forged-window rejection; stale revision conflict between tabs; explicit DSH light/dark preferences against the opposite OS preference and a 340px sidebar; enlarged/overlay comparison, search, filters and inline deletion; live broadcast updates while another tab holds an unsaved edit.
 - The browser workflow decodes a captured PNG to verify that the element's original background color is retained.
 - A production demo build is checked for absence of the inspector protocol and source attributes.
+- The 0.2.0 client bundle is **70,411 bytes**, below DSH's 262,144-byte limit.
 
 The browser scenarios use a clearly labeled test adapter for the host composer. They do not replace the native DSH check below. GitHub Actions runs the reproducible checks on Windows and Ubuntu; its run status is the source of truth for each commit.
 
@@ -24,10 +25,13 @@ The following were exercised:
 4. Element selection and a persisted feedback record with a PNG.
 5. Insertion through the **native DSH composer**, preserving its existing draft.
 6. A real source-file edit changing the demo button's text, width, radius, and color.
-7. React Fast Refresh retaining the selected yearly billing state during that edit.
+7. React Fast Refresh retaining the selected yearly billing state during that edit and across Preview/Feedback switches.
 8. Two recorded element images, measured differences, and explicit confirmation.
+9. Existing notes and their two snapshots restored after installing the updated package.
+10. DSH Light with an OS Dark preference, then DSH Dark with an OS Light preference; the plugin matched the host in both cases.
+11. Enlarged overlay comparison and Escape dismissal back to the review.
 
-The native run reported **zero page errors**. [Sidebar screenshot](images/workflow.png), [full DSH screenshot](images/native-dsh.png).
+The native run reported **zero page errors**. [Sidebar screenshot](images/workflow.png), [full DSH screenshot](images/native-dsh.png), [dark DSH screenshot](images/native-dsh-dark.png), [overlay comparison](images/comparison.png). Screenshots were taken in the real DSH application, not the integration fixture.
 
 The code edit in step 6 was made by the test driver. No claim is made that a live LLM performed it. Model submission, model quality, Electron's desktop shell, other frameworks, and other DSH versions were not part of this validation.
 

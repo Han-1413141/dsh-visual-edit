@@ -75,7 +75,8 @@ export type FrameMessage =
   | { type: "pick-ended"; protocol: string; channel: string };
 
 export function previewUrl(value: string, applicationOrigin?: string): string {
-  const u = new URL(value);
+  let u: URL;
+  try { u = new URL(value); } catch { throw new Error("localUrlOnly"); }
   if (
     !["http:", "https:"].includes(u.protocol) ||
     !["localhost", "127.0.0.1", "[::1]"].includes(u.hostname) ||

@@ -49,7 +49,11 @@ export async function readBoard(
             (n) =>
               validSnapshot(n.before) && (!n.after || validSnapshot(n.after)),
           )
-          .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)),
+          .sort(
+            (a, b) =>
+              a.before.capturedAt.localeCompare(b.before.capturedAt) ||
+              a.id.localeCompare(b.id),
+          ),
       });
     tx.onerror = () => reject(new Error("storageUnavailable"));
   });

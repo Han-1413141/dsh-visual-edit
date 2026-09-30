@@ -2,13 +2,13 @@
 
 **点选网页元素，把修改意见交给 DSH Agent，在原处比较结果。**
 
-[English](README.md) · [下载 v0.1.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.1.0) · [反馈问题](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[English](README.md) · [下载 v0.2.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.2.0) · [反馈问题](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 
 这是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的网页反馈侧栏。它连接本地 Vite + React 页面，把元素、源码位置和修改意见放在一起，方便修改后逐项确认。
 
-<img src="docs/images/workflow-zh.png" alt="真实 DSH 侧栏：网页预览、关联源码的意见、按钮修改前后快照和确认结果" width="620" />
+<img src="docs/images/native-dsh.png" alt="真实 DSH 中的网页点选修改侧栏，沿用 DSH 的颜色、字体和紧凑工具栏" width="1100" />
 
 截图来自 DSH **0.2.0-rc.2**。演示通过实际修改源码和 Vite 热更新获取结果，展示的是插件的反馈与确认流程，不代表模型性能评测。
 
@@ -17,9 +17,17 @@
 - **点选元素，找到源码**：记录 JSX 文件、行列、选择器、文字、样式和元素外观快照。
 - **加入当前对话**：保留输入框已有草稿，把意见交给你当前使用的 DSH Agent。
 - **比较修改结果**：在相同页面地址和视口下获取同一元素，比较前后图片、文字和样式，再手动确认。
+- **随 DSH 一起切换外观**：沿用宿主的字体、颜色和圆角，支持 DSH 的浅色、深色和系统设置。
+- **集中处理意见**：搜索、筛选待处理或已确认的记录，放大快照，拖动滑块叠加比较。
 - **保留修改记录**：按会话保存意见，支持中英文、桌面与手机视口、刷新恢复、JSON 导出，以及多个浏览器标签页之间的修改冲突检测。
 
 预览直接使用开发服务器的原地址。收起侧栏时保留已经打开的页面，未开启点选时可以正常操作页面。修改代码后的 React 状态是否保留，取决于应用本身的热更新方式。
+
+| 预览并点选 | 比较和确认 |
+|---|---|
+| <img src="docs/images/preview-zh.png" alt="原生风格预览工具栏" width="430" /> | <img src="docs/images/workflow-zh.png" alt="意见筛选、源码位置和前后快照" width="430" /> |
+
+[深色界面](docs/images/native-dsh-dark.png) · [叠加比较](docs/images/comparison.png) · [界面设计说明](docs/ui-design.zh-CN.md)
 
 ## 安装和使用
 
@@ -30,19 +38,19 @@
 在已经能使用 DSH 和 pnpm 的终端中执行：
 
 ```sh
-dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.1.0/dsh-visual-edit-0.1.0.tgz
+dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
 ```
 
 重启 DSH Web 并刷新浏览器。打开右侧边栏，选择“网页点选修改”；已有会话的标题栏也提供光标图标入口。
 
-首版通过 **GitHub Releases** 分发，请使用完整下载地址。直接执行 `npm install dsh-visual-edit` 不是本版本的安装方式。Electron 桌面端尚未单独验证。
+插件通过 **GitHub Releases** 分发，请使用完整下载地址。直接执行 `npm install dsh-visual-edit` 不是本版本的安装方式。Electron 桌面端尚未单独验证。
 
 ### 2. 为网页项目接入 Vite 插件
 
 进入**你的 Vite 网页项目目录**，执行：
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.1.0/dsh-visual-edit-0.1.0.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
 ```
 
 在已有的 `vite.config.ts` 中加入 `visualEdit()`：
@@ -75,6 +83,14 @@ visualEdit({ allowedOrigins: ['http://127.0.0.1:3086'] })
 
 “已加入输入框”只表示意见已经插入；“已确认”表示你点击了确认按钮。插件不会把这些状态当成模型已经完成任务的证明。
 
+保存意见后自动进入“修改意见”。获取结果时会短暂显示当前预览，再返回比较页，避免浏览器暂停隐藏页面的图片生成。点击快照可放大查看或叠加比较。窄侧栏会把筛选区和图片排成上下布局；“实际大小”可按原视口浏览较小的元素。
+
+填写意见时按 `Ctrl / ⌘ + Enter` 保存，按 `Esc` 取消。多窗口编辑发生冲突时保留你尚未保存的文字，并提供“读取最新意见”。该按钮会用最新记录替换编辑框；需要保留自己的版本时，先复制文字。
+
+### 从 0.1.0 升级
+
+用上方新的安装地址重新安装 DSH 侧栏和网页项目中的 Vite 插件，再重启两个服务。0.2.0 沿用原有存储格式；在相同浏览器、DSH 地址和会话中，已有意见和图片继续可用。
+
 ## 运行演示
 
 ```sh
@@ -99,7 +115,7 @@ npm run demo
 
 ## 当前版本的范围
 
-| 项目 | v0.1.0 范围 |
+| 项目 | v0.2.0 范围 |
 |---|---|
 | DSH | 0.2.0-rc.2 Web；其他版本及 Electron 桌面外壳未验证 |
 | 网页项目 | 本地 Vite 6.4、React JSX/TSX |
@@ -109,7 +125,7 @@ npm run demo
 | 列表元素 | 建议设置稳定 ID 或 `data-testid`；列表重排后，仅靠位置不能证明还是同一条记录 |
 | 确认方式 | 比较原始与当前快照，查看文字和样式变化，手动确认 |
 
-首版不覆盖跨域子 iframe、Shadow DOM、canvas/WebGL、浏览器原生控件样式、外部字体、远程网站和自动回滚。页面的 CSP 或 `X-Frame-Options` 可能限制嵌入及图片生成。图片不可用时仍保留源码、文字和样式，并显示原因；它不属于像素精确的浏览器截图测试。
+当前版本不覆盖跨域子 iframe、Shadow DOM、canvas/WebGL、浏览器原生控件样式、外部字体、远程网站和自动回滚。页面的 CSP 或 `X-Frame-Options` 可能限制嵌入及图片生成。图片不可用时仍保留源码、文字和样式，并显示原因；它不属于像素精确的浏览器截图测试。
 
 源码行号变化且目标没有稳定 ID 时，需要重新点选。页面地址或视口变化会阻止获取结果。[故障处理](docs/troubleshooting.md)。
 

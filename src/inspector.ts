@@ -1,3 +1,4 @@
+import { version } from "../package.json";
 import { toPng } from "html-to-image";
 import {
   MAX_IMAGE,
@@ -251,7 +252,7 @@ const message = async (e: MessageEvent): Promise<void> => {
   if (m.type === "hello") {
     parentOrigin = e.origin;
     channel = m.channel;
-    send({ type: "ready", version: "0.1.0" });
+    send({ type: "ready", version });
     return;
   }
   if (e.origin !== parentOrigin || m.channel !== channel) return;

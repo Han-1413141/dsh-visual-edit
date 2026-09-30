@@ -11,7 +11,10 @@
 | Wrong item after list reorder / 列表重排后对象不一致 | Use stable IDs or `data-testid` on list items. A unique positional selector alone cannot prove item identity. 重新点选并建立新意见。 |
 | No image / 没有外观图片 | Private inputs, elements over 1600 × 1600, cross-origin assets, canvas, web fonts, or CSP can prevent capture. Source/text/style facts still work. These are DOM-rendered snapshots. |
 | Composer changed / 输入框冲突 | Try Add to chat again once the composer is idle. Existing draft content is preserved; the plugin does not submit it automatically. |
-| Another tab changed a note / 其他标签页已修改 | The latest saved revision is reloaded. Review it and reapply your intended edit. 不会静默覆盖另一页的记录。 |
+| Another tab changed a note / 其他标签页已修改 | Unsaved text stays in the editor and saving is blocked. Copy your text if needed, then use Load latest note before editing again. “读取最新意见”会替换编辑框中的文字，不会静默覆盖另一页的记录。 |
+| Text was added but status could not be saved / 已加入输入框但保存状态失败 | Check the native draft before clicking Add to chat again; the inserted text is already there. 先查看输入框，避免重复添加。 |
+| Text or controls are small / 预览中的元素太小 | Use Actual size to keep the original viewport scale, or enlarge a saved snapshot. “实际大小”只改变显示缩放，不改变桌面或手机视口。 |
+| Appearance differs from the OS / 与系统深浅色不一致 | Visual Edit follows DSH's Settings → General → Appearance preference, including explicit Light or Dark. 请检查 DSH 的“通用设置 → 外观”。 |
 | Storage unavailable / 存储不可用或已满 | Export visible notes, remove old notes, and check browser storage permissions. Private browsing may have restrictive quotas. |
 | Notes disappeared / 看不到旧意见 | Use the same browser profile, DSH origin, and DSH session. Changing `localhost` to `127.0.0.1` creates a different browser storage origin. |
 

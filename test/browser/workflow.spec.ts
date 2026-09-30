@@ -75,6 +75,7 @@ test("select → source → composer → compare → confirm → restore, retain
     .click();
   await expect(page.locator(".ve-status")).toHaveText("Confirmed");
   await page.reload();
+  await page.getByRole("tab", { name: /Feedback/ }).click();
   await expect(page.locator(".ve-status")).toHaveText("Confirmed");
   await expect(page.locator(".ve-image img")).toHaveCount(2);
   await page
@@ -84,6 +85,7 @@ test("select → source → composer → compare → confirm → restore, retain
   await page
     .getByRole("combobox", { name: "Session" })
     .selectOption("session-one");
+  await page.getByRole("tab", { name: /Feedback/ }).click();
   await expect(page.locator(".ve-note")).toHaveCount(1);
 });
 test("capture rejects a different viewport and a missing element", async ({
@@ -91,14 +93,18 @@ test("capture rejects a different viewport and a missing element", async ({
 }) => {
   await connect(page);
   await annotate(page);
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
   await page.getByRole("button", { name: "Mobile", exact: true }).click();
+  await page.getByRole("tab", { name: /Feedback/ }).click();
   await page
     .getByRole("button", { name: "Capture result", exact: true })
     .click();
   await expect(page.getByRole("alert")).toContainText(
     "Restore the original page address and viewport",
   );
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
   await page.getByRole("button", { name: "Desktop", exact: true }).click();
+  await page.getByRole("tab", { name: /Feedback/ }).click();
   await page
     .frameLocator("iframe")
     .locator("#studio-cta")
@@ -163,6 +169,7 @@ test("storage revision guard does not overwrite a newer edit", async ({
     } as unknown as typeof BroadcastChannel;
   });
   await other.goto("/");
+  await other.getByRole("tab", { name: /Feedback/ }).click();
   await expect(other.locator(".ve-note")).toHaveCount(1);
   await other
     .getByRole("button", { name: "Edit feedback", exact: true })
@@ -180,11 +187,145 @@ test("storage revision guard does not overwrite a newer edit", async ({
   await other
     .getByRole("button", { name: "Save changes", exact: true })
     .click();
-  await expect(other.getByRole("alert")).toContainText(
+  await expect(other.locator(".ve-notice")).toContainText(
     "changed in another tab",
   );
   await expect(other.locator(".ve-note")).toContainText(
     "New feedback from tab one.",
   );
+  await other.close();
+});
+
+test("DSH theme overrides the OS theme and narrow sidebars stay usable", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await connect(page);
+  await expect(page.locator(".ve-root")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  await page.getByRole("combobox", { name: "DSH theme" }).selectOption("dark");
+  await expect(page.locator(".ve-root")).toHaveCSS(
+    "background-color",
+    "rgb(21, 21, 23)",
+  );
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator(".ve-root")).toHaveCSS(
+    "background-color",
+    "rgb(21, 21, 23)",
+  );
+  await page.getByRole("spinbutton", { name: "Sidebar width" }).fill("340");
+  await annotate(page);
+  const overflow = await page
+    .locator(".ve-root")
+    .evaluate((root) =>
+      Array.from(
+        root.querySelectorAll<HTMLElement>(
+          ".ve-navigation,.ve-filters,.ve-review",
+        ),
+      ).some((el) => el.scrollWidth > el.clientWidth + 2),
+    );
+  expect(overflow).toBe(false);
+  await expect(
+    page.getByRole("button", { name: "Add to chat", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await page.getByRole("button", { name: "Actual size", exact: true }).click();
+  expect(
+    await page
+      .frameLocator("iframe")
+      .locator("body")
+      .evaluate(() => innerWidth),
+  ).toBe(1024);
+});
+
+test("enlarged comparison, search, filters and inline deletion", async ({
+  page,
+}) => {
+  await connect(page);
+  await annotate(page);
+  await page
+    .frameLocator("iframe")
+    .locator("#studio-cta")
+    .evaluate((node) => {
+      node.textContent = "Start free trial";
+    });
+  await page
+    .getByRole("button", { name: "Capture result", exact: true })
+    .click();
+  await expect(page.locator(".ve-review .ve-image img")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Enlarge snapshot · Before", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Compare snapshots" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Overlay", exact: true }).click();
+  const slider = dialog.getByRole("slider", { name: "Reveal result" });
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slider).toHaveValue("51");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Confirm result", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.locator(".ve-note")).toHaveCount(0);
+  await page.getByRole("button", { name: "Confirmed", exact: true }).click();
+  await expect(page.locator(".ve-note")).toHaveCount(1);
+  const search = page.getByRole("searchbox", { name: "Search feedback" });
+  await search.fill("no matches");
+  await expect(page.locator(".ve-note")).toHaveCount(0);
+  await search.fill("free trial");
+  await expect(page.locator(".ve-note")).toHaveCount(1);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const confirmation = page.getByRole("group", { name: "Delete this note?" });
+  await confirmation
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await expect(page.locator(".ve-note")).toHaveCount(1);
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmation
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  await expect(page.locator(".ve-note")).toHaveCount(0);
+});
+
+test("a live broadcast cannot silently overwrite an in-progress edit", async ({
+  page,
+  context,
+}) => {
+  await connect(page);
+  await annotate(page);
+  const other = await context.newPage();
+  await other.goto("/");
+  await other.getByRole("tab", { name: /Feedback/ }).click();
+  await other
+    .getByRole("button", { name: "Edit feedback", exact: true })
+    .click();
+  await other
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("My unfinished text.");
+  await page
+    .getByRole("button", { name: "Edit feedback", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Latest text from another tab.");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(other.locator(".ve-edit-conflict")).toBeVisible();
+  await expect(
+    other.getByRole("textbox", { name: "What should change?" }),
+  ).toHaveValue("My unfinished text.");
+  await expect(
+    other.getByRole("button", { name: "Save changes", exact: true }),
+  ).toBeDisabled();
+  await other
+    .getByRole("button", { name: "Load latest note", exact: true })
+    .click();
+  await expect(
+    other.getByRole("textbox", { name: "What should change?" }),
+  ).toHaveValue("Latest text from another tab.");
   await other.close();
 });

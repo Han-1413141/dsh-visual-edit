@@ -19,6 +19,10 @@ flowchart LR
 
 The tab requests `keepMounted` so hiding it does not intentionally reload the iframe. Each `sessionId` has its own React board, records, and preview configuration. Native composer insertion uses `captureInsertion()` followed by `insertText()`. It collapses the selected span to an insertion point, preserving selected text and unrelated draft content. Submission remains an ordinary DSH action.
 
+The UI consumes DSH's font, color, radius, and interaction tokens, including its explicit theme preference. Preview and Feedback share a mounted iframe. Capture temporarily reveals the preview because Chromium suspends animation frames in hidden iframes; it returns to Feedback on completion or failure. The capture action locks view changes and page interaction while it runs. The standalone test adapter declares a small set of theme tokens; it does not inject those into DSH.
+
+Snapshot comparison uses a native modal dialog with keyboard dismissal and focus restoration. Overlay mode aligns stored images at the top left and preserves their relative dimensions. It neither recaptures the page nor uploads images.
+
 ## Source mapping
 
 The Vite plugin parses local `.jsx` and `.tsx` files before React transforms them. It adds a `data-dsh-ve-source` attribute to lowercase DOM tags using an AST and MagicString, with a source map. Custom component tags are not annotated. `node_modules`, files outside Vite's root, and non-JSX files are excluded. Physical source files are never rewritten by the plugin.
@@ -43,6 +47,8 @@ PNG data is local. Agent feedback contains a human request and labeled reference
 
 IndexedDB `dsh-visual-edit-v1` contains `notes` (key: session + note ID) and `boards` (key: session). Notes use optimistic revision checks in a read/write transaction. A stale writer aborts and reloads the latest record. A `BroadcastChannel` tells other tabs to refresh. Fifty notes per session limit storage growth; each snapshot has an independent image-size cap.
 
+The editor keeps the revision from the moment editing began, separate from the refreshed list. A broadcast cannot silently update that revision and overwrite newer content. Conflicts retain unsaved text and require an explicit reload before saving. A synchronous action lock prevents repeated in-flight writes. Composer insertion checks the note revision before writing and reports separately if the text was inserted but saving its status failed. Notes retain their original creation order when their status changes. Version 0.2.0 retains the 0.1.0 storage schema and bridge protocol.
+
 States have narrow meanings:
 
 | State | Meaning |
@@ -54,4 +60,4 @@ States have narrow meanings:
 
 Editing a note clears its previous result and preserves its original baseline. Capturing a result replaces the previous result for that note. The product is a two-snapshot review board, not a version-control system or an unlimited screenshot history.
 
-Export is a local JSON download containing notes and images. There is no import or cloud synchronization in v0.1. Removing the plugin does not delete browser data. Deleting a note removes its two stored snapshots.
+Export is a local JSON download containing notes and images. There is no import or cloud synchronization in v0.2. Removing the plugin does not delete browser data. Deleting a note removes its two stored snapshots after an inline confirmation.

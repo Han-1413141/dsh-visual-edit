@@ -2,14 +2,14 @@
 
 **Point at a webpage. Tell your DSH agent what to change. Compare the result.**
 
-[中文](README.zh-CN.md) · [Download v0.1.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.1.0) · [Report an issue](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[中文](README.zh-CN.md) · [Download v0.2.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.2.0) · [Report an issue](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A visual feedback sidebar for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It connects a local Vite + React page to your current conversation, with source locations and an explicit before/after review.
 
-<img src="docs/images/workflow.png" alt="Real DSH sidebar: local pricing page, source-linked feedback, before and after button snapshots, and a confirmed result" width="620" />
+<img src="docs/images/native-dsh.png" alt="The Visual Edit sidebar inside the real DSH application, using the host's colors, typography and compact toolbar" width="1100" />
 
 The screenshot comes from DSH **0.2.0-rc.2**. The demo was changed through a real source edit and Vite hot reload. This demonstrates the feedback and review workflow; it is not a model-quality benchmark.
 
@@ -18,9 +18,17 @@ The screenshot comes from DSH **0.2.0-rc.2**. The demo was changed through a rea
 - **Pick an element:** record its JSX file, line and column, selector, text, measured styles, and a DOM-rendered PNG.
 - **Add feedback to the current composer:** preserve your existing draft, review the request, and send it to your existing DSH agent.
 - **Compare the result:** capture the same element at the same URL and viewport, see before/after images and measured changes, then confirm it yourself.
+- **Follow DSH's appearance:** host fonts, colors, radii, and explicit light/dark or system preferences.
+- **Work through feedback:** search and filter open or confirmed notes, enlarge images, and compare with an overlay slider.
 - **Keep a local review history:** session-scoped notes, English/Chinese UI, desktop/mobile viewports, reload persistence, JSON export, and conflict detection between browser tabs.
 
 The preview uses your development server directly. It preserves the live iframe when the sidebar is hidden; ordinary app interactions still work outside selection mode. React state across a code change depends on your application's hot-reload behavior.
+
+| Preview and pick | Compare and confirm |
+|---|---|
+| <img src="docs/images/preview.png" alt="Compact preview toolbar" width="430" /> | <img src="docs/images/workflow.png" alt="Feedback filters, source location and before/after snapshots" width="430" /> |
+
+[Dark appearance](docs/images/native-dsh-dark.png) · [Overlay comparison](docs/images/comparison.png)
 
 ## Quick start
 
@@ -31,19 +39,19 @@ Requirements: Node **22.19+ or 24+**, an initialized DSH **0.2.0-rc.2** Web prof
 Run in a terminal with DSH and pnpm available:
 
 ```sh
-dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.1.0/dsh-visual-edit-0.1.0.tgz
+dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
 ```
 
 Restart DSH Web and refresh its browser page. Open the right sidebar and choose **Visual Edit**. Existing conversations also have a cursor icon in their header.
 
-The first release is distributed through **GitHub Releases**. Use the full URL above; a bare `npm install dsh-visual-edit` is not this release's installation path.
+The plugin is distributed through **GitHub Releases**. Use the full URL above; a bare `npm install dsh-visual-edit` is not this release's installation path.
 
 ### 2. Add the development bridge to your web project
 
 In **your Vite project's directory**:
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.1.0/dsh-visual-edit-0.1.0.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
 ```
 
 Add the plugin to your existing `vite.config.ts`:
@@ -76,6 +84,14 @@ The sidebar's **?** button shows configuration for the DSH origin you are curren
 
 “Added to composer” means the text was inserted. “Confirmed” means you clicked the confirmation button. The plugin does not infer that a model has completed or correctly implemented a request.
 
+Saving a note opens **Feedback**. Capture briefly brings the live preview into view, then returns to the comparison; this prevents browser throttling of image rendering inside hidden frames. Click a snapshot to enlarge it or use the overlay slider. Narrow sidebars stack filters and images; **Actual size** lets you inspect small targets without scaling the viewport.
+
+Use `Ctrl / ⌘ + Enter` to save feedback and `Esc` to cancel. If another tab updates the same note while you are editing, your unsaved text stays in the editor and saving is blocked. **Load latest note** explicitly replaces it with the latest record; copy your text first if you need both versions.
+
+### Upgrade from 0.1.0
+
+Reinstall the sidebar and your web project's Vite bridge using the new URLs above, then restart both services. Version 0.2.0 uses the existing storage format, so notes and images remain available in the same browser, DSH origin, and session.
+
 ## Try the included demo
 
 ```sh
@@ -98,7 +114,7 @@ Open `http://127.0.0.1:5179` in the sidebar. The demo contains a small pricing p
 
 Use private markers for sensitive content displayed as ordinary page text. These exclusions are specific rules, not a general sensitive-data detector. [Architecture and data flow](docs/architecture.md).
 
-## Scope of v0.1
+## Scope of v0.2
 
 | Area | Supported behavior |
 |---|---|
