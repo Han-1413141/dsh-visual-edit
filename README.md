@@ -2,16 +2,16 @@
 
 **Point at a webpage. Tell your DSH agent what to change. Compare the result.**
 
-[中文](README.zh-CN.md) · [Download v0.2.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.2.0) · [Report an issue](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[中文](README.zh-CN.md) · [Download v0.3.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.3.0) · [Report an issue](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A visual feedback sidebar for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It connects a local Vite + React page to your current conversation, with source locations and an explicit before/after review.
 
-<img src="docs/images/native-dsh.png" alt="The Visual Edit sidebar inside the real DSH application, using the host's colors, typography and compact toolbar" width="1100" />
+<img src="docs/images/native-batch.png" alt="The Visual Edit sidebar inside the real DSH application, using the host's colors, typography and compact toolbar" width="1100" />
 
-The screenshot comes from DSH **0.2.0-rc.2**. The demo was changed through a real source edit and Vite hot reload. This demonstrates the feedback and review workflow; it is not a model-quality benchmark.
+The screenshot shows batch feedback selection in the native sidebar of DSH **0.2.0-rc.2**. All screenshots come from the real DSH application. The demo illustrates plugin interactions, without submitting a request to a model.
 
 ## What it does
 
@@ -20,15 +20,17 @@ The screenshot comes from DSH **0.2.0-rc.2**. The demo was changed through a rea
 - **Compare the result:** capture the same element at the same URL and viewport, see before/after images and measured changes, then confirm it yourself.
 - **Follow DSH's appearance:** host fonts, colors, radii, and explicit light/dark or system preferences.
 - **Work through feedback:** search and filter open or confirmed notes, enlarge images, and compare with an overlay slider.
+- **Collect several changes:** save and pick another element, select multiple notes, and add them to one DSH draft.
+- **Restore local backups:** preview an exported file and restore notes with their snapshots into the current session; existing IDs are skipped.
 - **Keep a local review history:** session-scoped notes, English/Chinese UI, desktop/mobile viewports, reload persistence, JSON export, and conflict detection between browser tabs.
 
 The preview uses your development server directly. It preserves the live iframe when the sidebar is hidden; ordinary app interactions still work outside selection mode. React state across a code change depends on your application's hot-reload behavior.
 
-| Preview and pick | Compare and confirm |
+| Preview and pick | Collect and review feedback |
 |---|---|
-| <img src="docs/images/preview.png" alt="Compact preview toolbar" width="430" /> | <img src="docs/images/workflow.png" alt="Feedback filters, source location and before/after snapshots" width="430" /> |
+| <img src="docs/images/preview.png" alt="Compact preview toolbar" width="430" /> | <img src="docs/images/batch.png" alt="Select several notes and combine their requests in the native composer" width="430" /> |
 
-[Dark appearance](docs/images/native-dsh-dark.png) · [Overlay comparison](docs/images/comparison.png)
+[Dark appearance](docs/images/batch-dark.png) · [Overlay comparison](docs/images/comparison.png)
 
 ## Quick start
 
@@ -39,7 +41,7 @@ Requirements: Node **22.19+ or 24+**, an initialized DSH **0.2.0-rc.2** Web prof
 Run in a terminal with DSH and pnpm available:
 
 ```sh
-dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
+dsh plugin --profile web add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.3.0/dsh-visual-edit-0.3.0.tgz
 ```
 
 Restart DSH Web and refresh its browser page. Open the right sidebar and choose **Visual Edit**. Existing conversations also have a cursor icon in their header.
@@ -51,7 +53,7 @@ The plugin is distributed through **GitHub Releases**. Use the full URL above; a
 In **your Vite project's directory**:
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.2.0/dsh-visual-edit-0.2.0.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.3.0/dsh-visual-edit-0.3.0.tgz
 ```
 
 Add the plugin to your existing `vite.config.ts`:
@@ -88,9 +90,17 @@ Saving a note opens **Feedback**. Capture briefly brings the live preview into v
 
 Use `Ctrl / ⌘ + Enter` to save feedback and `Esc` to cancel. If another tab updates the same note while you are editing, your unsaved text stays in the editor and saving is blocked. **Load latest note** explicitly replaces it with the latest record; copy your text first if you need both versions.
 
-### Upgrade from 0.1.0
+### Collect and send multiple requests
 
-Reinstall the sidebar and your web project's Vite bridge using the new URLs above, then restart both services. Version 0.2.0 uses the existing storage format, so notes and images remain available in the same browser, DSH origin, and session.
+Use **Save & pick another** to keep annotating. In **Feedback**, choose **Select multiple**, check the notes, and click **Add selected to chat**. You can also copy the selected feedback.
+
+**Select visible** selects unconfirmed notes in the current filtered list. Reopen a confirmed note before sending another request for it. The combined prompt shares one instruction block while retaining each note's source and element data. Your existing DSH draft is preserved; you still review and send it yourself.
+
+Selection retains each note's revision. If another tab updates a selected note, clear and select it again before insertion so that unseen changes are not silently included.
+
+### Upgrade from 0.1 or 0.2
+
+Reinstall the sidebar and your web project's Vite bridge using the new URLs above, then restart both services. Version 0.3.0 uses the existing storage format, so notes and images remain available in the same browser, DSH origin, and session.
 
 ## Try the included demo
 
@@ -114,7 +124,15 @@ Open `http://127.0.0.1:5179` in the sidebar. The demo contains a small pricing p
 
 Use private markers for sensitive content displayed as ordinary page text. These exclusions are specific rules, not a general sensitive-data detector. [Architecture and data flow](docs/architecture.md).
 
-## Scope of v0.2
+### Back up and restore
+
+Use **Export notes** to download JSON. In the destination session, click **Restore backup**, choose the file, review new and duplicate records, and confirm. Restoring neither opens the referenced pages nor sends content to the agent.
+
+Notes retain comments, timestamps, source locations and before/after snapshots. Existing IDs are skipped. Previously queued notes become drafts because the destination composer may not contain their feedback. The current preview URL and viewport stay as configured. Backups exported by 0.1 and 0.2 are supported. Files are limited to 70 MB and the session remains limited to 50 notes.
+
+Invalid records, unsupported image data and excessive image dimensions are rejected before import. Writes use one transaction: a storage failure leaves no partial import. [Restore preview](docs/images/restore-zh.png).
+
+## Scope of v0.3
 
 | Area | Supported behavior |
 |---|---|
@@ -142,7 +160,7 @@ npm run test:browser
 npm run demo:build
 ```
 
-On Linux, use `npx playwright install --with-deps chromium`. Browser tests use an explicitly labeled integration fixture. A separate native DSH run verified package installation, real sidebar registration, native composer insertion, source-edit hot reload, and image comparison. See [validation](docs/validation.md).
+On Linux, use `npx playwright install --with-deps chromium`. Browser tests use an explicitly labeled integration fixture. The native DSH check for 0.3 verified continuous picking, combined composer insertion, legacy backup restoration, duplicate handling, and light/dark appearance. Source-edit hot reload and image comparison were also verified in the 0.2 baseline. See [validation](docs/validation.md).
 
 The built client uses DSH's React instance and stays below its 256 KiB bundle limit. `lib/` is committed so release archives work without a consumer-side build. Contributions should keep the native DSH workflow working; include a reproduction for unsupported frameworks or host versions. [Contributing](CONTRIBUTING.md).
 

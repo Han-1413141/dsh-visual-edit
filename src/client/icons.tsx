@@ -16,6 +16,8 @@ const paths = {
   check: "m5 12 4 4L19 6",
   copy: "M8 8h12v12H8zM4 16H3V3h13v1",
   download: "M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4",
+  upload: "M12 16V3m-5 5 5-5 5 5M4 17v4h16v-4",
+  checklist: "m3 5 2 2 3-4m-5 9 2 2 3-4m-5 9 2 2 3-4M12 5h9m-9 7h9m-9 7h9",
   search: "M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0Zm-2 5 6 6",
   expand: "M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6",
   code: "m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18",

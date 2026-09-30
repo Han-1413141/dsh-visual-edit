@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — 2026-09-30
+
+- Save feedback and immediately pick the next element without losing live page state.
+- Select multiple unconfirmed notes and insert or copy one combined prompt, retaining each source location and the existing composer draft.
+- Preserve selected revisions across background updates and commit queued statuses together in one transaction.
+- Preview and restore v1 JSON backups into the current session, including snapshots. Skip existing IDs and restore queued records as drafts.
+- Validate backup records, file size, PNG headers and image dimensions before restoration; reject excessive note counts and roll back a failed import.
+- Keep restore failures visible inside the dialog and focus the active batch action by hiding individual send/capture controls while selecting.
+- Expand coverage to eight unit tests and eleven browser scenarios. Verify the new workflow in native DSH and add bilingual instructions and screenshots.
+
 ## 0.2.0 — 2026-09-30
 
 - Follow DSH's actual light/dark setting, fonts, colors, border radii, and compact control sizes. Remove the separate branded header.

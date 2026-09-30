@@ -1,4 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 async function connect(page: Page, path = "/") {
   await page.goto(path);
@@ -334,4 +336,275 @@ test("a live broadcast cannot silently overwrite an in-progress edit", async ({
     other.getByRole("textbox", { name: "What should change?" }),
   ).toHaveValue("Latest text from another tab.");
   await other.close();
+});
+
+test("continuous picking batches two requests into one preserved draft", async ({
+  page,
+}) => {
+  await connect(page);
+  const app = page.frameLocator("iframe");
+  await app.getByRole("button", { name: "Yearly" }).click();
+  await page
+    .getByRole("button", { name: "Pick an element", exact: true })
+    .click();
+  await app.locator("#studio-cta").click();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Widen the trial button.");
+  await page
+    .getByRole("button", { name: "Save & pick another", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Pick an element", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await app.locator("h1").click();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Shorten the page heading.");
+  await page
+    .getByRole("button", { name: "Save feedback", exact: true })
+    .click();
+  await expect(page.locator(".ve-note")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Select multiple", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: "Select visible", exact: true })
+    .check();
+  await expect(
+    page.getByRole("group", { name: "Selected feedback" }),
+  ).toContainText("2 selected");
+  await page.getByRole("spinbutton", { name: "Sidebar width" }).fill("340");
+  expect(
+    await page
+      .locator(".ve-batch-bar")
+      .evaluate((el) => el.scrollWidth <= el.clientWidth + 2),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Add selected to chat", exact: true })
+    .click();
+  const composer = page.getByRole("textbox", { name: "Composer" });
+  await expect(composer).toHaveValue(/Shorten the page heading/);
+  const content = await composer.inputValue();
+  expect(content).toContain("Widen the trial button.");
+  expect(content).toContain("Existing draft.");
+  expect(content.match(/^# Visual Edit feedback/gm)).toHaveLength(1);
+  expect(content.match(/^## \d+\. User request/gm)).toHaveLength(2);
+  await expect(page.locator(".ve-status")).toHaveText([
+    "Added to composer",
+    "Added to composer",
+  ]);
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await expect(app.getByRole("button", { name: "Yearly" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("backup restore previews records, preserves images, skips duplicates and isolates sessions", async ({
+  page,
+}) => {
+  await connect(page);
+  await annotate(page);
+  await page
+    .getByRole("button", { name: "Capture result", exact: true })
+    .click();
+  await expect(page.locator(".ve-image img")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Confirm result", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Pick an element", exact: true })
+    .click();
+  await page.frameLocator("iframe").locator("h1").click();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("A heading note to restore as a draft.");
+  await page
+    .getByRole("button", { name: "Save feedback", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Add to chat", exact: true }).click();
+  await expect(page.locator(".ve-status")).toHaveText([
+    "Confirmed",
+    "Added to composer",
+  ]);
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export notes", exact: true }).click();
+  const data = await readFile((await (await downloading).path())!);
+  await page
+    .getByRole("combobox", { name: "Session", exact: true })
+    .selectOption("session-two");
+  await page.getByRole("tab", { name: /Feedback/ }).click();
+  const file = {
+    name: "backup.json",
+    mimeType: "application/json",
+    buffer: data,
+  };
+  await page
+    .getByLabel("Feedback backup file", { exact: true })
+    .setInputFiles(file);
+  const dialog = page.getByRole("dialog", {
+    name: "Restore feedback into this session",
+  });
+  await expect(dialog).toContainText("2 new notes");
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".ve-note")).toHaveCount(0);
+  await page
+    .getByLabel("Feedback backup file", { exact: true })
+    .setInputFiles(file);
+  await dialog
+    .getByRole("button", { name: "Restore notes", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".ve-note")).toHaveCount(2);
+  await expect(page.locator(".ve-status")).toHaveText(["Confirmed", "Draft"]);
+  await expect(page.locator(".ve-image img")).toHaveCount(2);
+  await page
+    .getByLabel("Feedback backup file", { exact: true })
+    .setInputFiles(file);
+  await expect(dialog).toContainText("0 new notes · 2 already saved");
+  await expect(
+    dialog.getByRole("button", { name: "Restore notes", exact: true }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+  const corrupt = JSON.parse(data.toString());
+  corrupt.notes[0].before.image = 'data:image/svg+xml,<svg onload="alert(1)"/>';
+  await page
+    .getByLabel("Feedback backup file", { exact: true })
+    .setInputFiles({ ...file, buffer: Buffer.from(JSON.stringify(corrupt)) });
+  await expect(page.locator(".ve-notice")).toContainText(
+    "not a valid Visual Edit backup",
+  );
+  await expect(page.locator(".ve-note")).toHaveCount(2);
+  // Simulate a browser aborting a restore (for example, quota exhaustion).
+  // The dialog must show the failure and preserve all existing records.
+  await page.evaluate(() => {
+    const original = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (storeNames, mode, options) {
+      const tx = original.call(this, storeNames, mode, options);
+      if (storeNames === "notes" && mode === "readwrite")
+        queueMicrotask(() => tx.abort());
+      return tx;
+    };
+  });
+  const extra = JSON.parse(data.toString());
+  extra.notes[0].id = "new-backup-note";
+  await page
+    .getByLabel("Feedback backup file", { exact: true })
+    .setInputFiles({ ...file, buffer: Buffer.from(JSON.stringify(extra)) });
+  await dialog
+    .getByRole("button", { name: "Restore notes", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Browser storage is unavailable",
+  );
+  await expect(page.locator(".ve-note")).toHaveCount(2);
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("combobox", { name: "Session", exact: true })
+    .selectOption("session-one");
+  await page.getByRole("tab", { name: /Feedback/ }).click();
+  await expect(page.locator(".ve-status")).toHaveText([
+    "Confirmed",
+    "Added to composer",
+  ]);
+});
+
+test("batch selection holds its revisions when another tab edits a chosen note", async ({
+  page,
+  context,
+}) => {
+  await connect(page);
+  await annotate(page);
+  await page
+    .getByRole("button", { name: "Select multiple", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: "Select visible", exact: true })
+    .check();
+  const other = await context.newPage();
+  await other.goto("/");
+  await other.getByRole("tab", { name: /Feedback/ }).click();
+  await other
+    .getByRole("button", { name: "Edit feedback", exact: true })
+    .click();
+  await other
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("A revised request from another tab.");
+  await other
+    .getByRole("button", { name: "Save changes", exact: true })
+    .click();
+  await expect(page.locator(".ve-batch-conflict")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Add selected to chat", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("textbox", { name: "Composer" })).toHaveValue(
+    "Existing draft.",
+  );
+  await page
+    .getByRole("button", { name: "Clear selection", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: "Select visible", exact: true })
+    .check();
+  await page
+    .getByRole("button", { name: "Add selected to chat", exact: true })
+    .click();
+  await expect(page.getByRole("textbox", { name: "Composer" })).toHaveValue(
+    /A revised request from another tab/,
+  );
+  await other.close();
+});
+
+test("batch status writes and oversized restores are atomic", async ({
+  page,
+}) => {
+  await connect(page);
+  await annotate(page);
+  const result = await page.evaluate(
+    async (moduleUrl) => {
+      const { readBoard, importNotes, queueNotes } = await import(
+        /* @vite-ignore */ moduleUrl
+      );
+      const first = (await readBoard("session-one")).notes[0];
+      await importNotes("session-one", [{ ...first, id: crypto.randomUUID() }]);
+      const pair = (await readBoard("session-one")).notes;
+      let conflict = "",
+        capacity = "";
+      try {
+        await queueNotes([pair[0], { ...pair[1], revision: 999 }]);
+      } catch (e) {
+        conflict = (e as Error).message;
+      }
+      const unchanged = (await readBoard("session-one")).notes.every(
+        (n: any) => n.revision === 0 && n.status === "draft",
+      );
+      try {
+        await importNotes(
+          "session-one",
+          Array.from({ length: 49 }, () => ({
+            ...first,
+            id: crypto.randomUUID(),
+          })),
+        );
+      } catch (e) {
+        capacity = (e as Error).message;
+      }
+      const count = (await readBoard("session-one")).notes.length;
+      await queueNotes(pair);
+      const queued = (await readBoard("session-one")).notes.every(
+        (n: any) => n.revision === 1 && n.status === "queued",
+      );
+      return { conflict, unchanged, capacity, count, queued };
+    },
+    "/@fs/" + resolve("src/client/storage.ts").replace(/\\/g, "/"),
+  );
+  expect(result).toEqual({
+    conflict: "storageConflict",
+    unchanged: true,
+    capacity: "importLimit",
+    count: 2,
+    queued: true,
+  });
 });

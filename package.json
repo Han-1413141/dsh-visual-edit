@@ -1,6 +1,6 @@
 {
   "name": "dsh-visual-edit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Point at a webpage, give your DSH agent feedback, and compare the result in place.",
   "type": "module",
   "main": "./lib/index.js",

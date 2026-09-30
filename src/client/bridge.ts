@@ -122,6 +122,10 @@ export function useBridge(
       send({ type: "pick", enabled: !picking });
       setPicking(!picking);
     },
+    startPick: () => {
+      send({ type: "pick", enabled: true });
+      setPicking(true);
+    },
     highlight: (snapshot: Snapshot) => send({ type: "highlight", snapshot }),
     capture: (snapshot: Snapshot): Promise<Snapshot> =>
       new Promise((resolve, reject) => {

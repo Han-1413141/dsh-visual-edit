@@ -12,6 +12,10 @@
 | No image / 没有外观图片 | Private inputs, elements over 1600 × 1600, cross-origin assets, canvas, web fonts, or CSP can prevent capture. Source/text/style facts still work. These are DOM-rendered snapshots. |
 | Composer changed / 输入框冲突 | Try Add to chat again once the composer is idle. Existing draft content is preserved; the plugin does not submit it automatically. |
 | Another tab changed a note / 其他标签页已修改 | Unsaved text stays in the editor and saving is blocked. Copy your text if needed, then use Load latest note before editing again. “读取最新意见”会替换编辑框中的文字，不会静默覆盖另一页的记录。 |
+| A selected batch changed / 批量选择发生冲突 | Clear the selection, review the updated notes and select them again. 合并加入对话使用勾选时的内容版本。 |
+| Restore finds no new notes / 恢复时没有新意见 | The destination session already contains those IDs. Existing notes are kept rather than replaced. 可在另一个会话恢复，或继续使用当前记录。 |
+| Backup rejected / 无法读取备份 | Use the original exported JSON. Check the 70 MB file limit and 50-note session capacity. Invalid metadata and unsupported or oversized PNGs are rejected. 不需要手动修改会话编号。 |
+| Restore fails during saving / 保存恢复结果失败 | The error stays inside the restore dialog. Free browser storage or retry in a suitable browser profile. Failed transactions leave existing notes intact and add no partial records. |
 | Text was added but status could not be saved / 已加入输入框但保存状态失败 | Check the native draft before clicking Add to chat again; the inserted text is already there. 先查看输入框，避免重复添加。 |
 | Text or controls are small / 预览中的元素太小 | Use Actual size to keep the original viewport scale, or enlarge a saved snapshot. “实际大小”只改变显示缩放，不改变桌面或手机视口。 |
 | Appearance differs from the OS / 与系统深浅色不一致 | Visual Edit follows DSH's Settings → General → Appearance preference, including explicit Light or Dark. 请检查 DSH 的“通用设置 → 外观”。 |

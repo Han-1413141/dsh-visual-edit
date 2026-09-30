@@ -11,10 +11,21 @@ import {
   createNote,
   feedbackText,
   previewUrl,
+  MAX_NOTES,
   type ReviewNote,
   type Snapshot,
 } from "../shared/model";
-import { deleteNote, putNote, readBoard, saveConfig } from "./storage";
+import {
+  deleteNote,
+  putNote,
+  readBoard,
+  saveConfig,
+  queueNotes,
+  importNotes,
+} from "./storage";
+import { type Backup } from "../shared/backup";
+import { BackupControls } from "./backup-controls";
+import { NoteList } from "./note-list";
 import { useBridge } from "./bridge";
 import { en, type CopyKey, type Translate } from "./locales";
 import { Icon, CursorIcon } from "./icons";
@@ -35,12 +46,6 @@ export interface PanelProps {
   inputActions?: InputActions;
 }
 type View = "preview" | "feedback";
-const STATUS: Record<ReviewNote["status"], CopyKey> = {
-  draft: "stateDraft",
-  queued: "stateQueued",
-  review: "stateReview",
-  confirmed: "stateConfirmed",
-};
 const NEXT: Record<ReviewNote["status"], CopyKey> = {
   draft: "nextStepDraft",
   queued: "nextStepQueued",
@@ -100,10 +105,15 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
   const [active, setActive] = useState<string>();
   const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
   const [search, setSearch] = useState("");
+  const [batchMode, setBatchMode] = useState(false);
   const [busyAction, setBusyAction] = useState<string>();
   const busy = !!busyAction;
   const lock = useRef(false);
-  const [notice, setNotice] = useState<{ key: CopyKey; error: boolean }>();
+  const [notice, setNotice] = useState<{
+    key: CopyKey;
+    error: boolean;
+    count?: number;
+  }>();
   const [showSetup, setShowSetup] = useState(false);
   const [deleting, setDeleting] = useState<string>();
   const [expanded, setExpanded] = useState<ReviewNote>();
@@ -178,9 +188,13 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (selected) editor.current?.focus();
+    if (selected) {
+      editor.current?.focus();
+      setBatchMode(false);
+    }
   }, [selected]);
   function changeView(next: View) {
+    if (next === "preview") setBatchMode(false);
     setView(next);
     setDeleting(undefined);
     scroll.current?.scrollTo({ top: 0 });
@@ -196,16 +210,18 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     if (alive.current) setNotes(data.notes);
   }
   async function run(task: () => Promise<void>, action = "working") {
-    if (lock.current) return;
+    if (lock.current) return false;
     lock.current = true;
     setBusyAction(action);
     setNotice(undefined);
     try {
       await task();
+      return true;
     } catch (error) {
       reportError(error);
       if (error instanceof Error && error.message === "storageConflict")
         await refresh().catch(reportError);
+      return false;
     } finally {
       lock.current = false;
       if (alive.current) setBusyAction(undefined);
@@ -248,7 +264,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
     });
     setViewport(value);
   }
-  function save(event?: FormEvent) {
+  function save(event?: FormEvent, continuePicking = false) {
     event?.preventDefault();
     void run(async () => {
       if (!selected) return;
@@ -268,13 +284,59 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
       cancelEdit();
       setFilter("all");
       setSearch("");
-      changeView("feedback");
+      changeView(continuePicking ? "preview" : "feedback");
+      if (continuePicking) bridge.startPick();
       setNotice({ key: "saved", error: false });
     }, "save");
   }
   async function copy(text: string, key: CopyKey = "copied") {
     await navigator.clipboard.writeText(text);
     setNotice({ key, error: false });
+  }
+  function addToChat(items: ReviewNote[]) {
+    return run(async () => {
+      if (!inputActions || !items.length) throw new Error("inputBusy");
+      const span = inputActions.captureInsertion();
+      const latest = (await readBoard(sessionId)).notes;
+      if (
+        items.some(
+          (note) =>
+            note.sessionId !== sessionId ||
+            note.status === "confirmed" ||
+            latest.find((n) => n.id === note.id)?.revision !== note.revision,
+        )
+      )
+        throw new Error("storageConflict");
+      if (!alive.current) return;
+      if (
+        !inputActions.insertText(`\n\n${feedbackText(items)}\n`, {
+          ...span,
+          end: span.start,
+        })
+      )
+        throw new Error("inputBusy");
+      try {
+        await queueNotes(items);
+        await refresh();
+        broadcast.current?.postMessage("updated");
+        setNotice({ key: "added", error: false });
+      } catch {
+        await refresh().catch(() => {});
+        setNotice({ key: "insertedNotSaved", error: true });
+      }
+    });
+  }
+  function restore(backup: Backup) {
+    return run(async () => {
+      const result = await importNotes(sessionId, backup.notes);
+      await refresh();
+      broadcast.current?.postMessage("updated");
+      if (!alive.current) return;
+      setFilter("all");
+      setSearch("");
+      setActive(result.added[0]?.id);
+      setNotice({ key: "imported", error: false, count: result.added.length });
+    }, "restore");
   }
   const matching = notes.filter(
     (n) =>
@@ -416,7 +478,9 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
           className={`ve-notice ${notice.error ? "ve-error" : ""}`}
           role={notice.error ? "alert" : "status"}
         >
-          <span>{t(notice.key)}</span>
+          <span>
+            {t(notice.key).replace("{count}", String(notice.count ?? ""))}
+          </span>
           <button
             className="ve-icon"
             aria-label={t("cancel")}
@@ -669,6 +733,21 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
               <button type="button" onClick={cancelEdit}>
                 {t("cancel")}
               </button>
+              {!editing && (
+                <button
+                  type="button"
+                  className="ve-outline"
+                  disabled={
+                    busy ||
+                    !ready ||
+                    !comment.trim() ||
+                    notes.length >= MAX_NOTES - 1
+                  }
+                  onClick={() => save(undefined, true)}
+                >
+                  {t("saveContinue")}
+                </button>
+              )}
               <button
                 className="ve-primary"
                 disabled={busy || !comment.trim() || !!editConflict}
@@ -705,36 +784,14 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
               >
                 <Icon name="cursor" />
               </button>
-              <button
-                className="ve-icon"
-                title={t("export")}
-                aria-label={t("export")}
-                disabled={!notes.length}
-                onClick={() => {
-                  const blob = new Blob(
-                    [
-                      JSON.stringify(
-                        {
-                          format: "dsh-visual-edit/v1",
-                          exportedAt: new Date().toISOString(),
-                          notes,
-                        },
-                        null,
-                        2,
-                      ),
-                    ],
-                    { type: "application/json" },
-                  );
-                  const link = document.createElement("a");
-                  const href = URL.createObjectURL(blob);
-                  link.href = href;
-                  link.download = "visual-edit-feedback.json";
-                  link.click();
-                  setTimeout(() => URL.revokeObjectURL(href), 1000);
-                }}
-              >
-                <Icon name="download" />
-              </button>
+              <BackupControls
+                notes={notes}
+                t={t}
+                disabled={busy || !loaded || !!selected}
+                error={notice?.error ? notice.key : undefined}
+                onError={reportError}
+                onRestore={restore}
+              />
             </div>
             {!!notes.length && (
               <div className="ve-filters">
@@ -777,37 +834,23 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                 </button>
               </div>
             ) : (
-              <div className="ve-list">
-                {matching.map((note) => (
-                  <button
-                    className={`ve-note ${current?.id === note.id ? "is-active" : ""}`}
-                    aria-pressed={current?.id === note.id}
-                    key={note.id}
-                    onClick={() => {
-                      setActive(note.id);
-                      setDeleting(undefined);
-                    }}
-                  >
-                    <span className="ve-note-status-icon">
-                      <Icon
-                        name={note.status === "confirmed" ? "check" : "notes"}
-                        width="15"
-                        height="15"
-                      />
-                    </span>
-                    <span className="ve-note-content">
-                      <span>{note.comment}</span>
-                      <Source snapshot={note.before} t={t} />
-                    </span>
-                    <span className={`ve-status ve-status-${note.status}`}>
-                      {t(STATUS[note.status])}
-                    </span>
-                  </button>
-                ))}
-                {!matching.length && (
-                  <p className="ve-no-matches">{t("noMatches")}</p>
-                )}
-              </div>
+              <NoteList
+                batch={batchMode}
+                setBatch={setBatchMode}
+                notes={notes}
+                matching={matching}
+                currentId={current?.id}
+                t={t}
+                disabled={busy || !!selected}
+                canInsert={!!inputActions}
+                source={(note) => <Source snapshot={note.before} t={t} />}
+                onActivate={(id) => {
+                  setActive(id);
+                  setDeleting(undefined);
+                }}
+                onAdd={addToChat}
+                onCopy={(items) => run(() => copy(feedbackText(items)))}
+              />
             )}
             {current && (
               <article className="ve-review" aria-label={t("reviews")}>
@@ -843,7 +886,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                   </button>
                 </header>
                 <p className="ve-next-step">{t(NEXT[current.status])}</p>
-                <div className="ve-actions">
+                <div className="ve-actions" hidden={batchMode}>
                   <button
                     className={
                       current.status === "draft" ? "ve-primary" : "ve-outline"
@@ -854,34 +897,7 @@ function Board({ sessionId, inputActions, t }: PanelProps) {
                       !inputActions ||
                       !!selected
                     }
-                    onClick={() =>
-                      void run(async () => {
-                        if (!inputActions) throw new Error("inputBusy");
-                        const span = inputActions.captureInsertion();
-                        const latest = (await readBoard(sessionId)).notes.find(
-                          (n) => n.id === current.id,
-                        );
-                        if (latest?.revision !== current.revision)
-                          throw new Error("storageConflict");
-                        if (
-                          !inputActions.insertText(
-                            `\n\n${feedbackText([current])}\n`,
-                            { ...span, end: span.start },
-                          )
-                        )
-                          throw new Error("inputBusy");
-                        try {
-                          await store(
-                            { ...current, status: "queued" },
-                            current.revision,
-                          );
-                          setNotice({ key: "added", error: false });
-                        } catch {
-                          await refresh();
-                          setNotice({ key: "insertedNotSaved", error: true });
-                        }
-                      })
-                    }
+                    onClick={() => void addToChat([current])}
                   >
                     <Icon name="arrow" />
                     {t("addToChat")}

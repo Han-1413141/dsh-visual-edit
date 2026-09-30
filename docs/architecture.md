@@ -49,6 +49,8 @@ IndexedDB `dsh-visual-edit-v1` contains `notes` (key: session + note ID) and `bo
 
 The editor keeps the revision from the moment editing began, separate from the refreshed list. A broadcast cannot silently update that revision and overwrite newer content. Conflicts retain unsaved text and require an explicit reload before saving. A synchronous action lock prevents repeated in-flight writes. Composer insertion checks the note revision before writing and reports separately if the text was inserted but saving its status failed. Notes retain their original creation order when their status changes. Version 0.2.0 retains the 0.1.0 storage schema and bridge protocol.
 
+Version 0.3.0 uses the same schema and protocol. Batch selection retains full selected revisions; a broadcast does not replace these with newer notes. The source-linked prompt contains one shared instruction block. `queueNotes()` checks and updates every selected record inside one IndexedDB transaction. A single stale revision aborts the whole status update. Composer insertion remains outside that transaction, so the UI explicitly reports an inserted prompt whose status update failed.
+
 States have narrow meanings:
 
 | State | Meaning |
@@ -60,4 +62,6 @@ States have narrow meanings:
 
 Editing a note clears its previous result and preserves its original baseline. Capturing a result replaces the previous result for that note. The product is a two-snapshot review board, not a version-control system or an unlimited screenshot history.
 
-Export is a local JSON download containing notes and images. There is no import or cloud synchronization in v0.2. Removing the plugin does not delete browser data. Deleting a note removes its two stored snapshots after an inline confirmation.
+Export is a local JSON download containing notes and images. The 0.3.0 importer accepts the same `dsh-visual-edit/v1` format used by prior versions. It checks the 70 MB file limit, note bounds and uniqueness, status/date/source metadata, comparison compatibility, and PNG signature/IHDR dimensions before presenting a preview. Only known fields enter storage; URL query/hash values are removed from imported snapshots and from generated feedback. The parser does not fetch referenced pages or images.
+
+`importNotes()` reads the destination session and adds new IDs in one read/write transaction. Existing IDs are skipped, the 50-note limit is checked against the current records, and any failure aborts the entire import. Imported revisions start at zero. Queued records become drafts because the target composer is independent of the backup; other recorded review states and images remain. Preview configuration is not imported. There is no cloud synchronization. Removing the plugin does not delete browser data. Deleting a note removes its two stored snapshots after an inline confirmation.
