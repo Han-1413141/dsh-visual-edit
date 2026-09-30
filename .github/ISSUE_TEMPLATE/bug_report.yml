@@ -1,0 +1,22 @@
+name: Bug report / 问题反馈
+description: Report a reproducible problem with Visual Edit.
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions / 版本
+      description: DSH (and profile), Visual Edit, Vite, React, browser, OS.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction / 复现步骤
+      description: What did you do, what happened, and what did you expect? Include a minimal public example if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Extra details / 补充信息
+      description: Remove API keys, private page content, and authentication URLs before sharing logs or images.

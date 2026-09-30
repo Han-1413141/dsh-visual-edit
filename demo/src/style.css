@@ -1,0 +1,250 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f7f8f4;
+  color: #263832;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+main {
+  max-width: 1150px;
+  margin: auto;
+  padding: 0 46px;
+}
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 25px 0 36px;
+}
+nav .brand {
+  font-size: 19px;
+  font-weight: 720;
+  color: inherit;
+  text-decoration: none;
+}
+nav > span {
+  font-size: 12px;
+  color: #6d7b72;
+}
+nav b {
+  padding: 0 12px;
+  color: #b7c1b5;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+.sign-in {
+  border: 1px solid #cbd3c5;
+  background: transparent;
+  padding: 7px 17px;
+  border-radius: 5px;
+  font-size: 11px;
+}
+.eyebrow {
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #6e856f;
+  margin-top: 7px;
+}
+h1 {
+  text-align: center;
+  font:
+    500 42px/1.14 Georgia,
+    serif;
+  letter-spacing: -1.5px;
+  margin: 15px 0;
+  color: #2d4538;
+}
+.subtitle {
+  text-align: center;
+  color: #7a877e;
+  line-height: 1.65;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.billing {
+  display: flex;
+  align-items: center;
+  background: #e9ede5;
+  border: 1px solid #dce3d7;
+  border-radius: 7px;
+  padding: 3px;
+  width: max-content;
+  margin: 0 auto 35px;
+}
+.billing button {
+  border: 0;
+  background: transparent;
+  color: #7a877c;
+  font-size: 11px;
+  padding: 7px 13px;
+  border-radius: 5px;
+}
+.billing button[aria-pressed="true"] {
+  background: #fff;
+  color: #324c3b;
+  box-shadow: 0 1px 4px #283b3212;
+}
+.billing small {
+  font-size: 9px;
+  margin-left: 7px;
+  color: #738c63;
+}
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+.plan {
+  position: relative;
+  background: white;
+  border: 1px solid #e1e7dc;
+  border-radius: 10px;
+  padding: 23px 20px;
+}
+.featured {
+  border-color: #a7b99b;
+  box-shadow: 0 4px 20px #35472b0a;
+}
+.popular {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid #b8c9aa;
+  border-radius: 20px;
+  background: #eef4e8;
+  color: #65785a;
+  white-space: nowrap;
+  padding: 2px 10px;
+  font-size: 9px;
+}
+.plan-label {
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  color: #8c9e83;
+}
+.plan h2 {
+  font-size: 18px;
+  margin: 10px 0 7px;
+  font-weight: 600;
+}
+.plan > p {
+  font-size: 10px;
+  color: #8b978e;
+  margin: 0;
+}
+.price {
+  font-size: 30px;
+  letter-spacing: -1px;
+  margin: 20px 0 15px;
+}
+.price > span {
+  font-size: 10px;
+  letter-spacing: 0;
+  color: #89958b;
+  margin-left: 5px;
+}
+ul {
+  padding: 14px 0 12px;
+  list-style: none;
+  border-top: 1px solid #f0f2ec;
+  margin: 0;
+  font-size: 10px;
+  line-height: 2.5;
+  color: #768673;
+}
+li:before {
+  content: "✓";
+  color: #9bb58a;
+  margin-right: 8px;
+}
+.secondary {
+  width: 100%;
+  border: 1px solid #dce3d5;
+  border-radius: 5px;
+  padding: 9px;
+  background: #fff;
+  color: #6d8162;
+  font-size: 10px;
+}
+.cta {
+  background: #809663;
+  color: white;
+  border: 0;
+  border-radius: 2px;
+  padding: 9px 7px;
+  font-size: 10px;
+  width: 86%;
+  white-space: nowrap;
+}
+.footnote {
+  text-align: center;
+  font-size: 9px;
+  color: #97a28e;
+  margin: 25px 0;
+}
+.privacy-fixture {
+  margin-top: 150px;
+  border-top: 1px solid #ddd;
+  padding: 24px;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  main {
+    padding: 0 22px;
+  }
+  nav > span {
+    display: none;
+  }
+  h1 {
+    font-size: 37px;
+  }
+  .plans {
+    grid-template-columns: 1fr;
+    max-width: 330px;
+    margin: auto;
+    gap: 24px;
+  }
+  .plan {
+    padding: 28px;
+  }
+  .price {
+    font-size: 36px;
+  }
+  .plan-label,
+  .plan > p,
+  ul,
+  .secondary,
+  .cta {
+    font-size: 12px;
+  }
+}
+/* Keep the full demo within the desktop review viewport. */
+@media (min-width: 601px) {
+  nav {
+    padding-bottom: 16px;
+  }
+  h1 {
+    font-size: 38px;
+    margin: 12px 0;
+  }
+  .billing {
+    margin-bottom: 28px;
+  }
+  .price {
+    margin: 16px 0 12px;
+  }
+  .privacy-fixture {
+    margin-top: 300px;
+  }
+}

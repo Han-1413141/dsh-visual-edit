@@ -1,0 +1,567 @@
+.ve-root {
+  --ve-bg: #fff;
+  --ve-text: #223048;
+  --ve-muted: #67748b;
+  --ve-line: #e3e8f0;
+  --ve-wash: #f5f7fb;
+  --ve-primary: #4664df;
+  background: var(--ve-bg);
+  color: var(--ve-text);
+  font:
+    13px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  container-type: inline-size;
+  scrollbar-width: thin;
+}
+.ve-root * {
+  box-sizing: border-box;
+}
+.ve-root button,
+.ve-root input,
+.ve-root textarea {
+  font: inherit;
+}
+.ve-root button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--ve-line);
+  background: var(--ve-bg);
+  color: var(--ve-text);
+  padding: 6px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.ve-root button:hover:enabled {
+  background: var(--ve-wash);
+}
+.ve-root button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+.ve-root :focus-visible {
+  outline: 2px solid var(--ve-primary);
+  outline-offset: 2px;
+}
+.ve-root .ve-primary {
+  background: var(--ve-primary);
+  border-color: var(--ve-primary);
+  color: #fff;
+}
+.ve-root .ve-primary:hover:enabled {
+  background: #3551c8;
+}
+.ve-root .ve-icon {
+  border: 0;
+  width: 28px;
+  padding: 3px;
+  font-size: 19px;
+  flex-shrink: 0;
+}
+.ve-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 16px 12px;
+}
+.ve-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ve-primary);
+  font-size: 16px;
+  white-space: nowrap;
+}
+.ve-kicker {
+  flex: 1;
+  font-size: 11px;
+  color: var(--ve-muted);
+}
+.ve-address {
+  display: flex;
+  gap: 7px;
+  padding: 0 14px 12px;
+}
+.ve-root input,
+.ve-root textarea {
+  border: 1px solid var(--ve-line);
+  background: var(--ve-bg);
+  color: var(--ve-text);
+  padding: 8px 10px;
+  border-radius: 7px;
+  min-width: 0;
+}
+.ve-address input {
+  flex: 1;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.ve-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border-block: 1px solid var(--ve-line);
+  background: var(--ve-wash);
+}
+.ve-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ve-muted);
+  flex: 1;
+}
+.ve-connection:before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #aab4c3;
+  flex-shrink: 0;
+}
+.ve-connection.is-ready:before {
+  background: #299b77;
+}
+.ve-segment {
+  display: flex;
+}
+.ve-root .ve-segment button {
+  padding: 4px 7px;
+  border-radius: 0;
+  font-size: 11px;
+}
+.ve-root .ve-segment button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+.ve-root .ve-segment button:last-child {
+  border-radius: 0 5px 5px 0;
+  border-left: 0;
+}
+.ve-root .ve-segment button[aria-pressed="true"] {
+  background: #e8edff;
+  color: #324cc1;
+}
+.ve-stage {
+  position: relative;
+  background: repeating-linear-gradient(
+    45deg,
+    #edf0f6,
+    #edf0f6 6px,
+    #f3f5f9 6px,
+    #f3f5f9 12px
+  );
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  padding-bottom: 22px;
+}
+.ve-frame-space {
+  position: relative;
+  flex-shrink: 0;
+  background: white;
+}
+.ve-stage iframe {
+  border: 0;
+  transform-origin: top left;
+  display: block;
+  background: white;
+}
+.ve-dimensions {
+  position: absolute;
+  bottom: 3px;
+  color: #687388;
+  font:
+    10px ui-monospace,
+    monospace;
+}
+.ve-stage-placeholder {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--ve-muted);
+  padding-top: 20px;
+}
+.ve-picking {
+  padding: 7px;
+  text-align: center;
+  background: #edf0ff;
+  color: #3552cc;
+  font-size: 12px;
+}
+.ve-setup {
+  padding: 12px 16px;
+  border-block: 1px solid var(--ve-line);
+  font-size: 12px;
+  background: var(--ve-wash);
+}
+.ve-setup summary,
+.ve-changes summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ve-setup p {
+  color: var(--ve-muted);
+  margin: 9px 0;
+}
+.ve-setup a {
+  color: var(--ve-primary);
+}
+.ve-setup pre {
+  overflow: auto;
+  padding: 10px;
+  background: var(--ve-bg);
+  border: 1px solid var(--ve-line);
+  border-radius: 8px;
+  font:
+    11px/1.6 ui-monospace,
+    monospace;
+}
+.ve-notice {
+  padding: 10px 14px;
+  background: #eff8f5;
+  color: #22775b;
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  font-size: 12px;
+}
+.ve-notice button {
+  border: 0;
+  background: transparent !important;
+  color: inherit;
+  margin-left: auto;
+  padding: 0 4px;
+}
+.ve-error {
+  background: #fff1ed;
+  color: #9c3b24;
+}
+.ve-selection {
+  margin: 12px 14px;
+  padding: 13px;
+  border: 1px solid #b5c1fc;
+  border-radius: 9px;
+  box-shadow: 0 4px 18px #3552cc0a;
+}
+.ve-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ve-selection label {
+  display: block;
+  font-size: 12px;
+  margin: 10px 0 8px;
+}
+.ve-selection textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  margin-top: 6px;
+}
+.ve-selection small {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ve-muted);
+}
+.ve-source {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ve-muted);
+  font:
+    11px/1.6 ui-monospace,
+    SFMono-Regular,
+    monospace;
+}
+.ve-feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 9px;
+}
+.ve-feedback-header h2 {
+  margin: 0;
+  font-size: 13px;
+}
+.ve-feedback-header h2 span {
+  font-size: 11px;
+  color: var(--ve-muted);
+  margin-left: 5px;
+}
+.ve-feedback-header button {
+  border: 0;
+  font-size: 11px;
+  color: var(--ve-muted);
+  padding: 2px;
+}
+.ve-empty {
+  padding: 10px 24px 20px;
+  text-align: center;
+  color: var(--ve-muted);
+  font-size: 12px;
+}
+.ve-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0 14px;
+}
+.ve-root .ve-note {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  justify-content: start;
+  gap: 9px;
+  padding: 10px;
+  border-radius: 8px;
+  white-space: normal;
+}
+.ve-root .ve-note.is-active {
+  background: #f3f5ff;
+  border-color: #bcc8ff;
+}
+.ve-number {
+  width: 21px;
+  height: 21px;
+  border-radius: 5px;
+  background: var(--ve-wash);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ve-primary);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.ve-note-content {
+  min-width: 0;
+  flex: 1;
+}
+.ve-note-content > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 12px;
+}
+.ve-status {
+  font-size: 10px;
+  white-space: nowrap;
+  border: 1px solid var(--ve-line);
+  border-radius: 20px;
+  padding: 2px 6px;
+  color: var(--ve-muted);
+}
+.ve-status-review {
+  color: #8c641e;
+  background: #fffaed;
+}
+.ve-status-confirmed {
+  color: #237455;
+  background: #edf8f1;
+}
+.ve-review {
+  padding: 13px 14px;
+}
+.ve-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.ve-actions button {
+  font-size: 12px;
+}
+.ve-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.ve-image {
+  margin: 0;
+  border: 1px solid var(--ve-line);
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 0;
+}
+.ve-image figcaption {
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--ve-line);
+  background: var(--ve-wash);
+}
+.ve-image small {
+  font-size: 9px;
+  color: var(--ve-muted);
+}
+.ve-image > div {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px;
+  overflow: auto;
+  background: var(--ve-bg);
+}
+.ve-image img {
+  max-width: 100%;
+  height: auto;
+  max-height: 250px;
+  object-fit: contain;
+}
+.ve-image p,
+.ve-after-placeholder p {
+  font-size: 11px;
+  color: var(--ve-muted);
+  margin: 6px;
+}
+.ve-after-placeholder {
+  border: 1px dashed var(--ve-line);
+  border-radius: 8px;
+  text-align: center;
+  padding: 16px;
+}
+.ve-after-placeholder > span {
+  font-size: 22px;
+  color: #a9b6cf;
+}
+.ve-changes {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ve-muted);
+}
+.ve-changes dl {
+  margin: 8px 0;
+  padding: 8px;
+  background: var(--ve-wash);
+  border-radius: 7px;
+}
+.ve-changes dt {
+  font-family: ui-monospace, monospace;
+  font-weight: bold;
+}
+.ve-changes dd {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+  margin: 2px 0 8px;
+}
+.ve-changes del {
+  color: #9b6153;
+}
+.ve-changes ins {
+  color: #26795d;
+  text-decoration: none;
+}
+.ve-root .ve-confirm {
+  margin-top: 12px;
+  background: #edf8f2;
+  color: #287554;
+  border-color: #c9e8d5;
+  width: 100%;
+}
+.ve-secondary-actions {
+  display: flex;
+  gap: 8px;
+  margin: 9px 0;
+}
+.ve-root .ve-secondary-actions button {
+  border: 0;
+  padding: 3px 0;
+  color: var(--ve-muted);
+  font-size: 11px;
+}
+.ve-root .ve-secondary-actions .ve-delete {
+  margin-left: auto;
+  color: #ac6357;
+}
+.ve-hint {
+  display: block;
+  color: var(--ve-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.ve-footer {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--ve-muted);
+  padding: 13px 16px;
+  border-top: 1px solid var(--ve-line);
+  margin-top: 8px;
+}
+@container (max-width:380px) {
+  .ve-kicker {
+    display: none;
+  }
+  .ve-header .ve-icon {
+    margin-left: auto;
+  }
+  .ve-connection {
+    flex-basis: 100%;
+  }
+  .ve-comparison {
+    grid-template-columns: 1fr;
+  }
+  .ve-status {
+    max-width: 78px;
+    white-space: normal;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .ve-root {
+    --ve-bg: #20232b;
+    --ve-text: #dce3ef;
+    --ve-muted: #a4b0c4;
+    --ve-line: #3b424f;
+    --ve-wash: #282d38;
+    --ve-primary: #6785ff;
+  }
+  .ve-root .ve-note.is-active {
+    background: #2c344c;
+    border-color: #536698;
+  }
+  .ve-root .ve-segment button[aria-pressed="true"] {
+    background: #344267;
+    color: #dce5ff;
+  }
+  .ve-picking {
+    background: #303e65;
+    color: #dce5ff;
+  }
+  .ve-notice {
+    background: #233e36;
+    color: #b6e4cd;
+  }
+  .ve-error {
+    background: #4c302b;
+    color: #f1c3b8;
+  }
+  .ve-status-review {
+    background: #4a3d26;
+    color: #edd9a7;
+  }
+  .ve-status-confirmed,
+  .ve-root .ve-confirm {
+    background: #244135;
+    color: #b5e4c9;
+    border-color: #416751;
+  }
+  .ve-stage {
+    background: #191d25;
+  }
+}

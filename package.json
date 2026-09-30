@@ -1,0 +1,98 @@
+{
+  "name": "dsh-visual-edit",
+  "version": "0.1.0",
+  "description": "Point at a webpage, give your DSH agent feedback, and compare the result in place.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./vite": {
+      "types": "./lib/vite.d.ts",
+      "default": "./lib/vite.js"
+    },
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "docs",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "icon": "./icon.svg",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:browser": "playwright test",
+    "demo": "vite --config demo/vite.config.ts --host 127.0.0.1",
+    "demo:build": "vite build --config demo/vite.config.ts && node scripts/check-production.mjs",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.0",
+    "magic-string": "^0.30.21"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "esbuild": "^0.25.0",
+    "html-to-image": "1.11.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.4.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": "0.2.0-rc.2",
+    "vite": "6.4.x"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Han-1413141/dsh-visual-edit.git"
+  },
+  "homepage": "https://github.com/Han-1413141/dsh-visual-edit#readme",
+  "bugs": "https://github.com/Han-1413141/dsh-visual-edit/issues",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "visual-feedback",
+    "react",
+    "vite",
+    "annotation"
+  ],
+  "license": "MIT"
+}
