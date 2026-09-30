@@ -400,7 +400,9 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
         });
     });
     return () => cancelAnimationFrame(request);
-  }, [external?.reviewId, current?.after?.capturedAt, selected]);
+  // Reveal a newly available comparison once; live clocks must not pull the
+  // reader back down every time the existing after image is refreshed.
+  }, [external?.reviewId, current?.id, !!current?.after, selected]);
   const confirmedCount = notes.filter((n) => n.status === "confirmed").length;
   const editConflict =
     editing &&
