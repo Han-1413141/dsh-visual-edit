@@ -9,12 +9,14 @@ export function ImageCard({
   t,
   onExpand,
   baseline = false,
+  recovery,
 }: {
   snapshot: Snapshot;
   label: string;
   t: Translate;
   onExpand?: () => void;
   baseline?: boolean;
+  recovery?: React.ReactNode;
 }) {
   return (
     <figure className="ve-image">
@@ -55,6 +57,7 @@ export function ImageCard({
           {baseline && snapshot.warning === "snapshotUnavailable" && (
             <p>{t("missingBaseline")}</p>
           )}
+          {recovery}
         </div>
       )}
       {snapshot.viewportChanged && (
@@ -62,6 +65,9 @@ export function ImageCard({
       )}
       {snapshot.fallbackRegion && (
         <p className="ve-hint">{t("fallbackRegion")}</p>
+      )}
+      {snapshot.restoredFromHtml && (
+        <p className="ve-hint">{t("restoredFromHtml")}</p>
       )}
     </figure>
   );
@@ -89,13 +95,13 @@ export function ComparisonDialog({
   }, []);
   const width = Math.max(
     1,
-    note.before.rect.width,
-    note.after?.rect.width ?? 0,
+    (note.before.imageRect ?? note.before.rect).width,
+    (note.after?.imageRect ?? note.after?.rect)?.width ?? 0,
   );
   const height = Math.max(
     1,
-    note.before.rect.height,
-    note.after?.rect.height ?? 0,
+    (note.before.imageRect ?? note.before.rect).height,
+    (note.after?.imageRect ?? note.after?.rect)?.height ?? 0,
   );
   return (
     <dialog
@@ -162,7 +168,9 @@ export function ComparisonDialog({
               <img
                 src={note.before.image}
                 alt={t("before")}
-                style={{ width: `${(note.before.rect.width / width) * 100}%` }}
+                style={{
+                  width: `${((note.before.imageRect ?? note.before.rect).width / width) * 100}%`,
+                }}
               />
               <div
                 className="ve-overlay-layer"
@@ -172,7 +180,7 @@ export function ComparisonDialog({
                   src={note.after!.image}
                   alt={t("after")}
                   style={{
-                    width: `${(note.after!.rect.width / width) * 100}%`,
+                    width: `${((note.after!.imageRect ?? note.after!.rect).width / width) * 100}%`,
                   }}
                 />
               </div>

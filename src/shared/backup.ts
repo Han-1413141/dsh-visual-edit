@@ -98,6 +98,46 @@ function snapshot(value: unknown): Snapshot {
       : {}),
     ...(value.viewportChanged ? { viewportChanged: true } : {}),
     ...(value.fallbackRegion ? { fallbackRegion: true } : {}),
+    ...(value.imageRect
+      ? {
+          imageRect: {
+            x: value.imageRect.x,
+            y: value.imageRect.y,
+            width: value.imageRect.width,
+            height: value.imageRect.height,
+          },
+        }
+      : {}),
+    ...(value.selectionBounds
+      ? {
+          selectionBounds: {
+            x: value.selectionBounds.x,
+            y: value.selectionBounds.y,
+            width: value.selectionBounds.width,
+            height: value.selectionBounds.height,
+          },
+        }
+      : {}),
+    ...(value.selectionTargets
+      ? {
+          selectionTargets: value.selectionTargets.map((l) => ({
+            selector: l.selector,
+            tag: l.tag,
+            ...(l.id !== undefined ? { id: l.id } : {}),
+            ...(l.testId !== undefined ? { testId: l.testId } : {}),
+            ...(l.source
+              ? {
+                  source: {
+                    file: l.source.file,
+                    line: l.source.line,
+                    column: l.source.column,
+                  },
+                }
+              : {}),
+          })),
+        }
+      : {}),
+    ...(value.restoredFromHtml ? { restoredFromHtml: true } : {}),
     ...(value.annotation
       ? {
           annotation: {

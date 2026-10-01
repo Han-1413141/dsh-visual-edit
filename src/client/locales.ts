@@ -15,7 +15,16 @@ export const en = {
   autoPartial:
     "Element changes are available, but one or more images are missing. See the comparison below.",
   missingBaseline:
-    "The before image was not saved and cannot be recreated from the current page. Select again to start a new comparison.",
+    "The before image was not saved. Restore it from the original HTML file, or select again to start a new comparison.",
+  restoreBaseline: "Restore from original HTML",
+  baselineRestored:
+    "Before image restored from the selected historical HTML file.",
+  restoredFromHtml:
+    "Re-rendered from the provided historical HTML; original capture time retained.",
+  baselineMismatch:
+    "This HTML does not match the original text and element. Select the version from before the edit.",
+  baselineFileInvalid:
+    "Select an HTML file smaller than 2 MB from before the edit.",
   autoError:
     "Automatic comparison paused. Reload the preview or capture the result to retry.",
   nativeComparisonHint:
@@ -223,7 +232,12 @@ export const zh: typeof en = {
   autoUpdated: "对比已更新，可以查看修改前后的效果。",
   autoPartial: "已获取元素变化，但前后图片不完整，请查看下方说明。",
   missingBaseline:
-    "当时未保存修改前的图片，无法用当前页面补回。重新点选可开始新的对比。",
+    "当时未保存修改前的图片。可用修改前的 HTML 恢复，或重新点选开始新的对比。",
+  restoreBaseline: "从修改前 HTML 恢复",
+  baselineRestored: "已根据所选历史 HTML 恢复修改前的图片。",
+  restoredFromHtml: "根据提供的历史 HTML 重新渲染，保留原记录时间。",
+  baselineMismatch: "所选 HTML 与原来的文字或元素不匹配，请选择修改前的版本。",
+  baselineFileInvalid: "请选择修改前的 HTML 文件，大小不超过 2 MB。",
   autoError: "自动对比暂未完成，可刷新预览或点“获取修改结果”重试。",
   nativeComparisonHint: "页面更新时会继续获取结果，直到你确认完成。",
   viewportChanged: "预览尺寸已变化，请结合尺寸变化查看两张截图。",

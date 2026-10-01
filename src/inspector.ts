@@ -11,6 +11,10 @@ import {
   regionText,
   regionImage,
   snapshotFilter,
+  regionElements,
+  unionRegions,
+  paddedRegion,
+  mapAnnotation,
 } from "./annotation";
 import {
   MAX_IMAGE,
@@ -170,16 +174,68 @@ function safeText(node: HTMLElement): string {
     .forEach((el) => el.remove());
   return (clone.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 2000);
 }
+function selectionGeometry(annotation: Annotation, target?: Snapshot) {
+  let adjusted = annotation;
+  let elements: HTMLElement[] = [];
+  if (target?.selectionTargets?.length) {
+    for (const item of target.selectionTargets) {
+      try {
+        elements.push(resolve({ ...target, locator: item }));
+      } catch {
+        /* Keep remaining targets. */
+      }
+    }
+    if (
+      elements.length === target.selectionTargets.length &&
+      target.selectionBounds
+    )
+      adjusted = mapAnnotation(
+        annotation,
+        target.selectionBounds,
+        unionRegions(elements.map(documentRect)),
+      );
+  }
+  if (!elements.length) {
+    // Older notes only carry a viewport and a rectangle. Scale horizontal coordinates
+    // before finding intersecting content; complete blocks prevent clipped headings.
+    if (target && target.viewport.width !== innerWidth)
+      adjusted = mapAnnotation(
+        annotation,
+        { x: 0, y: 0, width: target.viewport.width, height: 1 },
+        { x: 0, y: 0, width: innerWidth, height: 1 },
+      );
+    elements = regionElements(adjusted.region);
+  }
+  const bounds = elements.length
+    ? unionRegions(elements.map(documentRect))
+    : undefined;
+  return {
+    annotation: adjusted,
+    elements,
+    bounds,
+    region: paddedRegion(
+      bounds ? unionRegions([adjusted.region, bounds]) : adjusted.region,
+    ),
+  };
+}
 async function snapshot(
   node: HTMLElement,
   annotation?: Annotation,
   fallback?: Snapshot,
+  original?: Snapshot,
 ): Promise<Snapshot> {
   const key = await pageKey();
   const r = node.getBoundingClientRect();
   const css = getComputedStyle(node);
+  const geometry = annotation
+    ? selectionGeometry(annotation, original)
+    : undefined;
+  annotation = geometry?.annotation;
   const region =
-    annotation?.region ?? (fallback ? originalRegion(fallback) : undefined);
+    geometry?.region ??
+    (fallback ? paddedRegion(originalRegion(fallback)) : undefined);
+  const imageRect =
+    region ?? (boot ? paddedRegion(documentRect(node)) : undefined);
   const s: Snapshot = {
     url: publicUrl(),
     pageKey: key,
@@ -195,18 +251,25 @@ async function snapshot(
     visualKey: await digest(visualFacts(node, region)),
     ...(annotation ? { annotation } : {}),
     ...(fallback ? { fallbackRegion: true } : {}),
+    ...(imageRect ? { imageRect } : {}),
+    ...(geometry?.bounds
+      ? {
+          selectionBounds: geometry.bounds,
+          selectionTargets: geometry.elements.map(locator),
+        }
+      : {}),
   };
   if (node.closest(PRIVATE)) s.warning = "privateElement";
   else if (
     !region &&
-    (!r.width || !r.height || r.width > 1600 || r.height > 1600)
+    (!r.width || !r.height || (!boot && (r.width > 1600 || r.height > 1600)))
   )
     s.warning = "snapshotSize";
   else {
     try {
       const image =
         region || boot
-          ? await regionImage(region ?? documentRect(node), annotation)
+          ? await regionImage(imageRect ?? documentRect(node), annotation)
           : await toPng(node, {
               pixelRatio: 1,
               skipFonts: true,
@@ -403,7 +466,9 @@ async function checkWatched() {
       /* Capture the original area if removed. */
     }
     const region =
-      item.snapshot.annotation?.region ??
+      (item.snapshot.annotation
+        ? selectionGeometry(item.snapshot.annotation, item.snapshot).region
+        : undefined) ??
       (!node || item.snapshot.fallbackRegion
         ? originalRegion(item.snapshot)
         : undefined);
@@ -514,7 +579,9 @@ const handle = async (m: ParentMessage): Promise<void> => {
         node.scrollIntoView({ block: "center" });
         pointTo(node);
       } else {
-        const r = originalRegion(m.snapshot);
+        const r = m.snapshot.annotation
+          ? selectionGeometry(m.snapshot.annotation, m.snapshot).region
+          : originalRegion(m.snapshot);
         window.scrollTo({ top: Math.max(0, r.y - innerHeight / 3) });
         Object.assign(overlay.style, {
           display: "block",
@@ -538,6 +605,7 @@ const handle = async (m: ParentMessage): Promise<void> => {
         node ?? document.body,
         m.snapshot.annotation,
         !node || m.snapshot.fallbackRegion ? m.snapshot : undefined,
+        m.snapshot,
       );
       if (
         innerWidth !== m.snapshot.viewport.width ||

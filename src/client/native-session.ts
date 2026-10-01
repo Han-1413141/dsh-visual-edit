@@ -114,8 +114,8 @@ export class NativeSession {
     for (const note of targets) {
       if (
         note.after &&
-        !note.after.image &&
-        note.after.warning === "snapshotUnavailable" &&
+        ((!note.after.image && note.after.warning === "snapshotUnavailable") ||
+          (note.after.image && !note.after.imageRect)) &&
         !this.retriedImages.has(note.id)
       ) {
         this.retriedImages.add(note.id);

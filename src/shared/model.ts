@@ -43,6 +43,10 @@ export interface Snapshot {
   visualKey?: string;
   viewportChanged?: boolean;
   fallbackRegion?: boolean;
+  imageRect?: Rect;
+  selectionTargets?: Locator[];
+  selectionBounds?: Rect;
+  restoredFromHtml?: boolean;
 }
 export type NoteStatus = "draft" | "queued" | "review" | "confirmed";
 export interface ReviewNote {
@@ -249,6 +253,39 @@ export function validSnapshot(value: unknown): value is Snapshot {
   )
     return false;
   if (value.warning !== undefined && !bounded(value.warning, 240)) return false;
+  for (const key of ["imageRect", "selectionBounds"]) {
+    const r = value[key];
+    if (
+      r !== undefined &&
+      (!object(r) ||
+        !point(r) ||
+        ![r.width, r.height].every(
+          (n) => typeof n === "number" && n > 0 && n <= 20000,
+        ))
+    )
+      return false;
+  }
+  if (
+    value.restoredFromHtml !== undefined &&
+    typeof value.restoredFromHtml !== "boolean"
+  )
+    return false;
+  if (
+    value.selectionTargets !== undefined &&
+    (!Array.isArray(value.selectionTargets) ||
+      value.selectionTargets.length > 24 ||
+      value.selectionTargets.some(
+        (l) =>
+          !object(l) ||
+          !bounded(l.selector, 1500) ||
+          !l.selector ||
+          !bounded(l.tag, 40) ||
+          (l.id !== undefined && !bounded(l.id, 200)) ||
+          (l.testId !== undefined && !bounded(l.testId, 200)) ||
+          (l.source !== undefined && !sourceLocation(l.source)),
+      ))
+  )
+    return false;
   if (
     (value.annotation !== undefined && !validAnnotation(value.annotation)) ||
     (value.scroll !== undefined && !point(value.scroll)) ||

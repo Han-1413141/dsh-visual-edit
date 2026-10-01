@@ -2,7 +2,7 @@
 
 **在 DSH 右侧预览中选元素、画箭头或框选区域，提交意见后自动查看前后效果。**
 
-[English](README.md) · [下载 v0.5.1](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.1) · [反馈问题](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[English](README.md) · [下载 v0.5.2](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.2) · [反馈问题](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 
@@ -39,7 +39,7 @@
 从 GitHub Releases 使用完整包地址安装。桌面端应先通过“应用 → 退出”完整退出，再使用桌面应用附带的 `dsh` 命令：
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.1/dsh-visual-edit-0.5.1.tgz
+dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.2/dsh-visual-edit-0.5.2.tgz
 ```
 
 重新打开桌面端。Windows 的附带命令位于安装目录的 `resources/runtime/cli/bin/dsh.cmd`。DSH Web 改用 `--profile web`，然后重启服务并刷新页面。
@@ -50,14 +50,14 @@ dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/
 
 用新包地址重新安装插件并重启 DSH。已有意见和快照沿用原来的 IndexedDB 格式。请使用相同浏览器或桌面配置、DSH 地址和会话访问原记录。旧版备份仍可恢复；已加入输入框的备份记录恢复为草稿，避免误认为目标会话已经发送过意见。
 
-v0.5.1 修复了页面中含有 `<!-- ---------- -->` 等分隔注释时无法生成快照的问题。重新加载预览后，尚未确认且生成失败的“修改后”图片会自动重试一次。当时未保存的“修改前”图片无法从当前页面补回，界面会明确说明；重新点选即可开始新的对比。图片不完整时不再提示完整的效果对比已成功。
+v0.5.2 修复了 HTML 分隔注释导致截图失败的问题。框选会完整保留相交的文字和内容元素，并跟随元素的移动、换行与尺寸变化。重新加载预览后，失败或旧版生成的“修改后”图片会自动更新一次。旧记录缺少“修改前”图片时，可以点击图片下方的“从修改前 HTML 恢复”，选择真实的历史文件（不超过 2 MB）。恢复过程禁用网页脚本和联网，核对原文字与元素，保留原记录时间，并注明图片来自历史源码重新渲染。
 
 ### 可选：Vite / React 源码定位
 
 原生 HTML 预览会标注原 HTML 文件行列。桌面端浏览器可以直接标注任意已加载的 HTTP(S) 网页；若需要 React JSX/TSX 源码位置，在网页项目中接入开发插件：
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.1/dsh-visual-edit-0.5.1.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.2/dsh-visual-edit-0.5.2.tgz
 ```
 
 ```ts

@@ -1,11 +1,13 @@
-# Validation record: v0.5.1
+# Validation record: v0.5.2
 
 Date: **2026-10-01**. Windows, Node **24.19.0**, Chromium.
 
 - Reproduced a failed SVG decode on the affected local HTML page. Its divider comments contained repeated hyphens, which are invalid in XML comments. The fixed capture produced a decoded PNG with the page's gradient heading; the original file was not edited.
-- Strict TypeScript and all **9 native preview browser tests** passed. The shared fixture now contains divider comments, covering element, arrow, rectangle, static preview and automatic/manual capture paths.
+- Strict TypeScript and all **10 native preview browser tests** passed. The shared fixture now contains divider comments, covering element, arrow, rectangle, static preview and automatic/manual capture paths.
 - The added regression test forces persistent canvas failures, checks the incomplete-comparison message and bounded retries, then reloads the preview. It verifies automatic recovery of the result image while preserving the missing historical baseline and its timestamp.
-- Production client: **226,643 bytes**, below the 262,144-byte limit. CI status for the release commit records the full Windows/Ubuntu suite.
+- Production client: **233,579 bytes**, below the 262,144-byte limit. CI status for the release commit records the full Windows/Ubuntu suite.
+
+- Additional coverage: partial rectangle selections retain complete headings after viewport resize, text wrapping and movement. Historical HTML recovery rejects a wrong version, blocks its scripts and child frames, preserves the original timestamp, and cleans up the temporary renderer. Backup tests round-trip the bounded image geometry and target list.
 
 ## Previous validation: v0.5.0
 

@@ -72,6 +72,9 @@ test("failed snapshots report partial results and recover after reload without r
 }) => {
   await page.goto("/native.html");
   const frame = page.frameLocator("iframe[data-html-preview]");
+  const originalHtml = await frame
+    .locator("html")
+    .evaluate((el) => el.outerHTML);
   await page.getByRole("button", { name: "Visual Edit", exact: true }).click();
   await expect(page.locator(".ve-native-picking")).toBeVisible();
   await frame.locator("body").evaluate(() => {
@@ -116,7 +119,7 @@ test("failed snapshots report partial results and recover after reload without r
     timeout: 15000,
   });
   await expect(page.locator(".ve-image").first()).toContainText(
-    "cannot be recreated",
+    "original HTML",
   );
   await expect(page.locator(".ve-image time").first()).toHaveAttribute(
     "datetime",
@@ -130,6 +133,109 @@ test("failed snapshots report partial results and recover after reload without r
     .getByRole("button", { name: "Capture result", exact: true })
     .click();
   await expect(page.locator(".ve-image img")).toHaveCount(1);
+  const input = page.getByLabel("Restore from original HTML", { exact: true });
+  await input.setInputFiles({
+    name: "wrong.html",
+    mimeType: "text/html",
+    buffer: Buffer.from(originalHtml.replace("Hello, world", "Wrong version")),
+  });
+  await expect(page.getByRole("alert")).toContainText("does not match");
+  await expect(page.locator(".ve-image img")).toHaveCount(1);
+  const requests: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("baseline-leak")) requests.push(r.url());
+  });
+  await input.setInputFiles({
+    name: "original.html",
+    mimeType: "text/html",
+    buffer: Buffer.from(
+      originalHtml +
+        '<script>fetch("https://example.com/baseline-leak")</script><iframe src="https://example.com/baseline-leak"></iframe>',
+    ),
+  });
+  await expect(page.locator(".ve-image img")).toHaveCount(2, {
+    timeout: 15000,
+  });
+  await expect(page.locator(".ve-image").first()).toContainText(
+    "historical HTML",
+  );
+  await expect(page.locator(".ve-image time").first()).toHaveAttribute(
+    "datetime",
+    beforeTime!,
+  );
+  expect(requests).toEqual([]);
+  await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0);
+});
+
+test("a partial rectangle keeps the complete heading after resize, wrapping and movement", async ({
+  page,
+}) => {
+  await page.goto("/native.html");
+  const frame = page.frameLocator("iframe[data-html-preview]");
+  await frame.locator("#headline").evaluate((el) => {
+    el.textContent = "A complete headline with several words";
+    (el as HTMLElement).style.width = "min(70vw, 650px)";
+  });
+  await page.getByRole("button", { name: "Visual Edit", exact: true }).click();
+  await expect(page.locator(".ve-native-picking")).toBeVisible();
+  await page.getByRole("button", { name: "Rectangle", exact: true }).click();
+  const box = (await frame.locator("#headline").boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.4, box.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + 22, { steps: 5 });
+  await page.mouse.up();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Keep the entire heading visible.");
+  await page
+    .getByRole("button", { name: "Add to chat & compare", exact: true })
+    .click();
+  await expect(page.locator(".ve-image img")).toHaveCount(1);
+  const beforeSize = await page
+    .locator(".ve-image img")
+    .evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]);
+  expect(beforeSize[0]).toBeGreaterThanOrEqual(Math.floor(box.width));
+  expect(beforeSize[1]).toBeGreaterThanOrEqual(Math.floor(box.height));
+  await page.setViewportSize({ width: 1040, height: 900 });
+  await frame.locator("#headline").evaluate((el) => {
+    el.textContent =
+      "Updated complete headline with several more words that wrap";
+    (el as HTMLElement).style.transform = "translateY(85px)";
+  });
+  await expect(page.locator(".ve-image img")).toHaveCount(2, {
+    timeout: 15000,
+  });
+  const size = await frame.locator("#headline").evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return [r.width, r.height];
+  });
+  await expect
+    .poll(() =>
+      page
+        .locator(".ve-image img")
+        .last()
+        .evaluate((img: HTMLImageElement) => img.naturalHeight),
+    )
+    .toBeGreaterThanOrEqual(Math.floor(size[1]));
+  const light = await page
+    .locator(".ve-image img")
+    .last()
+    .evaluate((img: HTMLImageElement) => {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const pixels = ctx.getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < pixels.length; i += 4)
+        if (pixels[i] > 220 && pixels[i + 1] > 220 && pixels[i + 2] > 220) n++;
+      return n;
+    });
+  expect(light).toBeGreaterThan(300);
+  await expect(page.locator(".ve-changes")).toContainText(
+    "Updated complete headline",
+  );
 });
 
 test("static preview keeps page scripts blocked while the bundled inspector works", async ({
