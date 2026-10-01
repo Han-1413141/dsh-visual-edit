@@ -2,7 +2,7 @@
 
 **Select an element, draw an arrow, or frame an area in DSH's preview. Add feedback and compare the updated page automatically.**
 
-[中文说明](README.zh-CN.md) · [Download v0.5.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.0) · [Report a problem](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[中文说明](README.zh-CN.md) · [Download v0.5.2](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.2) · [Report a problem](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 
@@ -39,7 +39,7 @@ Targets DSH **0.2.0-rc.2**. The package includes its inspector and client depend
 For the desktop app, fully exit through its application menu, then run the **bundled DSH CLI**:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.0/dsh-visual-edit-0.5.0.tgz
+dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.2/dsh-visual-edit-0.5.2.tgz
 ```
 
 Reopen DSH. On Windows, the bundled launcher is `resources/runtime/cli/bin/dsh.cmd` inside the application directory. DSH Web users substitute `--profile web`, restart the server, and refresh the client.
@@ -50,12 +50,14 @@ Distribution is through **GitHub Releases**, using the complete package URL. A b
 
 Reinstall from the new URL and restart DSH. Existing IndexedDB notes, images, and older JSON backups remain compatible. Use the same client profile, DSH origin, and session to access existing records. Imported queued notes become drafts, since the destination composer may not contain their requests.
 
+Version 0.5.2 fixes capture on pages containing HTML divider comments. Rectangle captures include complete intersecting content blocks, and saved targets follow layout changes and wrapping. Failed or old result images are refreshed once per preview load. If a historical before image is missing, choose **Restore from original HTML** below it and provide the actual earlier file (up to 2 MB). The isolated renderer disables page scripts and network access, checks the recorded text and target, preserves the original timestamp, and labels the recovered image. It never infers an earlier page from the current one.
+
 ### Optional Vite / React source locations
 
 Native HTML records original file line/column locations. The desktop Browser can inspect loaded HTTP(S) pages directly. For JSX/TSX locations, install the development bridge in your web project:
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.0/dsh-visual-edit-0.5.0.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.2/dsh-visual-edit-0.5.2.tgz
 ```
 
 ```ts

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { instrumentHtml } from "../src/client/native-html";
-import { snapshotUrl, pageLabel } from "../src/shared/model";
+import { snapshotUrl, pageLabel, validSnapshot } from "../src/shared/model";
 import { parseBackup, serializeBackup } from "../src/shared/backup";
 import { createNote, type Snapshot } from "../src/shared/model";
 
@@ -51,4 +51,30 @@ test("native page references survive backup without granting file access or reta
   };
   const note = createNote("test", sample, "Widen this button.");
   assert.equal(parseBackup(serializeBackup([note])).notes[0].before.url, url);
+  const anchored = {
+    ...sample,
+    imageRect: { x: 1, y: 2, width: 100, height: 50 },
+    selectionBounds: { x: 2, y: 3, width: 90, height: 40 },
+    selectionTargets: [sample.locator],
+    restoredFromHtml: true,
+  };
+  assert.deepEqual(
+    parseBackup(serializeBackup([createNote("test", anchored, "Recovered")]))
+      .notes[0].before,
+    anchored,
+  );
+  assert.equal(
+    validSnapshot({
+      ...anchored,
+      selectionTargets: Array(25).fill(sample.locator),
+    }),
+    false,
+  );
+  assert.equal(
+    validSnapshot({
+      ...anchored,
+      imageRect: { ...anchored.imageRect, width: Infinity },
+    }),
+    false,
+  );
 });

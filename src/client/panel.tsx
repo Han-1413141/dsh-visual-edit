@@ -30,6 +30,7 @@ import { useBridge } from "./bridge";
 import { en, type CopyKey, type Translate } from "./locales";
 import { Icon, CursorIcon } from "./icons";
 import { ComparisonDialog, ImageCard } from "./comparison";
+import { recoverBaseline } from "./recover-baseline";
 import styles from "./styles.css?raw";
 export { CursorIcon } from "./icons";
 
@@ -54,7 +55,7 @@ export interface PanelProps {
     comment?: string;
     setComment?(comment: string): void;
     clearSelection?(): void;
-    autoStatus?: "waiting" | "capturing" | "updated" | "error";
+    autoStatus?: "waiting" | "capturing" | "updated" | "partial" | "error";
     autoError?: string;
     reviewId?: string;
   };
@@ -136,6 +137,7 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
   const editor = useRef<HTMLTextAreaElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const comparison = useRef<HTMLDivElement>(null);
+  const baselineFile = useRef<HTMLInputElement>(null);
   const alive = useRef(true);
   const broadcast = useRef<BroadcastChannel>();
   const [stageWidth, setStageWidth] = useState(500);
@@ -400,8 +402,8 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
         });
     });
     return () => cancelAnimationFrame(request);
-  // Reveal a newly available comparison once; live clocks must not pull the
-  // reader back down every time the existing after image is refreshed.
+    // Reveal a newly available comparison once; live clocks must not pull the
+    // reader back down every time the existing after image is refreshed.
   }, [external?.reviewId, current?.id, !!current?.after, selected]);
   const confirmedCount = notes.filter((n) => n.status === "confirmed").length;
   const editConflict =
@@ -879,7 +881,9 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                         ? "autoCapturing"
                         : external.autoStatus === "updated"
                           ? "autoUpdated"
-                          : "autoError",
+                          : external.autoStatus === "partial"
+                            ? "autoPartial"
+                            : "autoError",
                   )}
                   {external.autoStatus === "error" &&
                   external.autoError &&
@@ -1056,7 +1060,13 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                             { ...current, after: result, status: "review" },
                             current.revision,
                           );
-                          setNotice({ key: "captured", error: false });
+                          setNotice({
+                            key:
+                              current.before.image && result.image
+                                ? "captured"
+                                : "autoPartial",
+                            error: false,
+                          });
                         } finally {
                           if (alive.current) changeView("feedback");
                         }
@@ -1076,6 +1086,48 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                   <ImageCard
                     snapshot={current.before}
                     label={t("before")}
+                    baseline
+                    recovery={
+                      !current.before.image && (
+                        <>
+                          <button
+                            type="button"
+                            className="ve-outline"
+                            disabled={busy}
+                            onClick={() => baselineFile.current?.click()}
+                          >
+                            {t("restoreBaseline")}
+                          </button>
+                          <input
+                            ref={baselineFile}
+                            type="file"
+                            accept=".html,.htm,text/html"
+                            aria-label={t("restoreBaseline")}
+                            style={{ display: "none" }}
+                            disabled={busy}
+                            onChange={(e) => {
+                              const file = e.currentTarget.files?.[0];
+                              e.currentTarget.value = "";
+                              if (file)
+                                void run(async () => {
+                                  const before = await recoverBaseline(
+                                    file,
+                                    current.before,
+                                  );
+                                  await store(
+                                    { ...current, before },
+                                    current.revision,
+                                  );
+                                  setNotice({
+                                    key: "baselineRestored",
+                                    error: false,
+                                  });
+                                }, "restoreBaseline");
+                            }}
+                          />
+                        </>
+                      )
+                    }
                     t={t}
                     onExpand={() => setExpanded(current)}
                   />
