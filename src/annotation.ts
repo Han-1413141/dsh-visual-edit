@@ -4,6 +4,14 @@ import type { Annotation, Rect, Snapshot } from "./shared/model";
 export const PRIVATE =
   'input,textarea,select,[contenteditable]:not([contenteditable="false"]),[data-private],[data-visual-edit-private]';
 export const OVERLAY = "[data-visual-edit-overlay]";
+/** HTML divider comments may contain `--`, which is invalid inside an XML comment. */
+export function snapshotFilter(node: Node): boolean {
+  return (
+    node.nodeType !== Node.COMMENT_NODE &&
+    (!(node instanceof Element) ||
+      !node.matches(`${PRIVATE},${OVERLAY},script`))
+  );
+}
 export const STYLE_KEYS = [
   "color",
   "backgroundColor",
@@ -170,8 +178,7 @@ export async function regionImage(
     skipFonts: true,
     cacheBust: false,
     backgroundColor: getComputedStyle(document.body).backgroundColor,
-    filter: (el) =>
-      !(el instanceof Element) || !el.matches(`${PRIVATE},${OVERLAY}`),
+    filter: snapshotFilter,
     style: {
       width: `${width}px`,
       height: `${height}px`,
@@ -186,6 +193,8 @@ export async function regionImage(
     decodeURIComponent(svg.slice(svg.indexOf(",") + 1)),
     "image/svg+xml",
   );
+  if (svgDocument.querySelector("parsererror"))
+    throw new Error("snapshotUnavailable");
   for (const el of svgDocument.querySelectorAll("foreignObject *")) {
     el.setAttribute(
       "style",

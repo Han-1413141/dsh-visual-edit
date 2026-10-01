@@ -32,6 +32,18 @@ test("native HTML: one-click selection, source, composer, reload comparison and 
     .getByRole("button", { name: "Save feedback", exact: true })
     .click();
   await expect(page.locator(".ve-image img")).toHaveCount(1);
+  // Divider comments must be omitted from the XML clone without changing the live page.
+  expect(
+    await frame
+      .locator("main")
+      .evaluate((el) =>
+        Array.from(el.childNodes).some(
+          (n) =>
+            n.nodeType === Node.COMMENT_NODE &&
+            n.textContent?.includes("----------"),
+        ),
+      ),
+  ).toBe(true);
   expect(
     await frame.locator("body").evaluate(() => [innerWidth, innerHeight]),
   ).toEqual(viewport);
@@ -53,6 +65,71 @@ test("native HTML: one-click selection, source, composer, reload comparison and 
     .click();
   await expect(page.locator(".ve-status")).toHaveText("Confirmed");
   expect(errors).toEqual([]);
+});
+
+test("failed snapshots report partial results and recover after reload without replacing the baseline", async ({
+  page,
+}) => {
+  await page.goto("/native.html");
+  const frame = page.frameLocator("iframe[data-html-preview]");
+  await page.getByRole("button", { name: "Visual Edit", exact: true }).click();
+  await expect(page.locator(".ve-native-picking")).toBeVisible();
+  await frame.locator("body").evaluate(() => {
+    (window as any).__snapshotAttempts = 0;
+    HTMLCanvasElement.prototype.toDataURL = () => {
+      (window as any).__snapshotAttempts++;
+      throw new DOMException("Snapshot failure", "SecurityError");
+    };
+  });
+  await frame.locator("#headline").click();
+  await page
+    .getByRole("textbox", { name: "What should change?" })
+    .fill("Keep the original baseline.");
+  await page
+    .getByRole("button", { name: "Save feedback", exact: true })
+    .click();
+  const beforeTime = await page
+    .locator(".ve-image time")
+    .first()
+    .getAttribute("datetime");
+  await page
+    .getByRole("button", { name: "Capture result", exact: true })
+    .click();
+  await expect(page.locator(".ve-auto-status")).toContainText(
+    "images are missing",
+  );
+  await expect(page.locator(".ve-image img")).toHaveCount(0);
+  // One recovery attempt per load; a persistent failure must not cause a capture loop.
+  await expect
+    .poll(() =>
+      frame.locator("body").evaluate(() => (window as any).__snapshotAttempts),
+    )
+    .toBe(3);
+  await page.waitForTimeout(1500);
+  expect(
+    await frame
+      .locator("body")
+      .evaluate(() => (window as any).__snapshotAttempts),
+  ).toBe(3);
+  await page.reload();
+  await expect(page.locator(".ve-image img")).toHaveCount(1, {
+    timeout: 15000,
+  });
+  await expect(page.locator(".ve-image").first()).toContainText(
+    "cannot be recreated",
+  );
+  await expect(page.locator(".ve-image time").first()).toHaveAttribute(
+    "datetime",
+    beforeTime!,
+  );
+  await expect(page.locator(".ve-image").last().locator("img")).toBeVisible();
+  await expect(page.locator(".ve-auto-status")).toContainText(
+    "images are missing",
+  );
+  await page
+    .getByRole("button", { name: "Capture result", exact: true })
+    .click();
+  await expect(page.locator(".ve-image img")).toHaveCount(1);
 });
 
 test("static preview keeps page scripts blocked while the bundled inspector works", async ({

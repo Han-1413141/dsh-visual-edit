@@ -1,4 +1,13 @@
-# Validation record: v0.5.0
+# Validation record: v0.5.1
+
+Date: **2026-10-01**. Windows, Node **24.19.0**, Chromium.
+
+- Reproduced a failed SVG decode on the affected local HTML page. Its divider comments contained repeated hyphens, which are invalid in XML comments. The fixed capture produced a decoded PNG with the page's gradient heading; the original file was not edited.
+- Strict TypeScript and all **9 native preview browser tests** passed. The shared fixture now contains divider comments, covering element, arrow, rectangle, static preview and automatic/manual capture paths.
+- The added regression test forces persistent canvas failures, checks the incomplete-comparison message and bounded retries, then reloads the preview. It verifies automatic recovery of the result image while preserving the missing historical baseline and its timestamp.
+- Production client: **226,643 bytes**, below the 262,144-byte limit. CI status for the release commit records the full Windows/Ubuntu suite.
+
+## Previous validation: v0.5.0
 
 Date: **2026-09-30**. Windows, Node **24.19.0**, DSH **0.2.0-rc.2**, Chromium. Native checks used an isolated test workspace/profile and never submitted a request to a model.
 

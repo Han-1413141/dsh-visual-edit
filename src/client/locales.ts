@@ -12,6 +12,10 @@ export const en = {
     "Waiting for the selected area to change. Comparison will appear here automatically.",
   autoCapturing: "Page updated. Capturing the result…",
   autoUpdated: "Comparison updated. Review the before and after snapshots.",
+  autoPartial:
+    "Element changes are available, but one or more images are missing. See the comparison below.",
+  missingBaseline:
+    "The before image was not saved and cannot be recreated from the current page. Select again to start a new comparison.",
   autoError:
     "Automatic comparison paused. Reload the preview or capture the result to retry.",
   nativeComparisonHint:
@@ -217,6 +221,9 @@ export const zh: typeof en = {
   autoWaiting: "等待标注区域更新，前后对比会自动显示在这里。",
   autoCapturing: "页面已更新，正在获取修改结果…",
   autoUpdated: "对比已更新，可以查看修改前后的效果。",
+  autoPartial: "已获取元素变化，但前后图片不完整，请查看下方说明。",
+  missingBaseline:
+    "当时未保存修改前的图片，无法用当前页面补回。重新点选可开始新的对比。",
   autoError: "自动对比暂未完成，可刷新预览或点“获取修改结果”重试。",
   nativeComparisonHint: "页面更新时会继续获取结果，直到你确认完成。",
   viewportChanged: "预览尺寸已变化，请结合尺寸变化查看两张截图。",

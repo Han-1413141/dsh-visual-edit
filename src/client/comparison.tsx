@@ -8,11 +8,13 @@ export function ImageCard({
   label,
   t,
   onExpand,
+  baseline = false,
 }: {
   snapshot: Snapshot;
   label: string;
   t: Translate;
   onExpand?: () => void;
+  baseline?: boolean;
 }) {
   return (
     <figure className="ve-image">
@@ -50,6 +52,9 @@ export function ImageCard({
                 : "noImage",
             )}
           </p>
+          {baseline && snapshot.warning === "snapshotUnavailable" && (
+            <p>{t("missingBaseline")}</p>
+          )}
         </div>
       )}
       {snapshot.viewportChanged && (
@@ -138,7 +143,12 @@ export function ComparisonDialog({
         </div>
         {mode === "side" ? (
           <div className="ve-dialog-images ve-comparison">
-            <ImageCard snapshot={note.before} label={t("before")} t={t} />
+            <ImageCard
+              snapshot={note.before}
+              label={t("before")}
+              t={t}
+              baseline
+            />
             {note.after && (
               <ImageCard snapshot={note.after} label={t("after")} t={t} />
             )}

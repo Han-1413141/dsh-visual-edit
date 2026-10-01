@@ -54,7 +54,7 @@ export interface PanelProps {
     comment?: string;
     setComment?(comment: string): void;
     clearSelection?(): void;
-    autoStatus?: "waiting" | "capturing" | "updated" | "error";
+    autoStatus?: "waiting" | "capturing" | "updated" | "partial" | "error";
     autoError?: string;
     reviewId?: string;
   };
@@ -400,8 +400,8 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
         });
     });
     return () => cancelAnimationFrame(request);
-  // Reveal a newly available comparison once; live clocks must not pull the
-  // reader back down every time the existing after image is refreshed.
+    // Reveal a newly available comparison once; live clocks must not pull the
+    // reader back down every time the existing after image is refreshed.
   }, [external?.reviewId, current?.id, !!current?.after, selected]);
   const confirmedCount = notes.filter((n) => n.status === "confirmed").length;
   const editConflict =
@@ -879,7 +879,9 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                         ? "autoCapturing"
                         : external.autoStatus === "updated"
                           ? "autoUpdated"
-                          : "autoError",
+                          : external.autoStatus === "partial"
+                            ? "autoPartial"
+                            : "autoError",
                   )}
                   {external.autoStatus === "error" &&
                   external.autoError &&
@@ -1056,7 +1058,13 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                             { ...current, after: result, status: "review" },
                             current.revision,
                           );
-                          setNotice({ key: "captured", error: false });
+                          setNotice({
+                            key:
+                              current.before.image && result.image
+                                ? "captured"
+                                : "autoPartial",
+                            error: false,
+                          });
                         } finally {
                           if (alive.current) changeView("feedback");
                         }
@@ -1076,6 +1084,7 @@ function Board({ sessionId, inputActions, t, external }: PanelProps) {
                   <ImageCard
                     snapshot={current.before}
                     label={t("before")}
+                    baseline
                     t={t}
                     onExpand={() => setExpanded(current)}
                   />

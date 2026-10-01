@@ -2,7 +2,7 @@
 
 **Select an element, draw an arrow, or frame an area in DSH's preview. Add feedback and compare the updated page automatically.**
 
-[中文说明](README.zh-CN.md) · [Download v0.5.0](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.0) · [Report a problem](https://github.com/Han-1413141/dsh-visual-edit/issues)
+[中文说明](README.zh-CN.md) · [Download v0.5.1](https://github.com/Han-1413141/dsh-visual-edit/releases/tag/v0.5.1) · [Report a problem](https://github.com/Han-1413141/dsh-visual-edit/issues)
 
 [![CI](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml/badge.svg)](https://github.com/Han-1413141/dsh-visual-edit/actions/workflows/ci.yml)
 
@@ -39,7 +39,7 @@ Targets DSH **0.2.0-rc.2**. The package includes its inspector and client depend
 For the desktop app, fully exit through its application menu, then run the **bundled DSH CLI**:
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.0/dsh-visual-edit-0.5.0.tgz
+dsh plugin --profile desktop add https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.1/dsh-visual-edit-0.5.1.tgz
 ```
 
 Reopen DSH. On Windows, the bundled launcher is `resources/runtime/cli/bin/dsh.cmd` inside the application directory. DSH Web users substitute `--profile web`, restart the server, and refresh the client.
@@ -50,12 +50,14 @@ Distribution is through **GitHub Releases**, using the complete package URL. A b
 
 Reinstall from the new URL and restart DSH. Existing IndexedDB notes, images, and older JSON backups remain compatible. Use the same client profile, DSH origin, and session to access existing records. Imported queued notes become drafts, since the destination composer may not contain their requests.
 
+Version 0.5.1 fixes image capture on HTML pages containing divider comments such as `<!-- ---------- -->`. On preview reload, pending result images that previously failed are retried once. Missing historical before images stay missing with an explanation; select again to start a new comparison. Incomplete image pairs no longer show a successful visual comparison message.
+
 ### Optional Vite / React source locations
 
 Native HTML records original file line/column locations. The desktop Browser can inspect loaded HTTP(S) pages directly. For JSX/TSX locations, install the development bridge in your web project:
 
 ```sh
-npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.0/dsh-visual-edit-0.5.0.tgz
+npm install -D https://github.com/Han-1413141/dsh-visual-edit/releases/download/v0.5.1/dsh-visual-edit-0.5.1.tgz
 ```
 
 ```ts

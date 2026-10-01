@@ -17,7 +17,7 @@ const html = (updated: boolean) => `<!doctype html><html><head><style>
 body{margin:0;background:#201b3d;color:#fff;font:16px system-ui;min-height:100vh;display:grid;place-items:center}
 main{padding:50px;background:#ffffff12;border:1px solid #ffffff22;border-radius:24px;text-align:center}
 button{background:#b7cdfa;border:0;padding:12px 28px;border-radius:10px;color:#18213d;font:inherit}
-</style></head><body><main>
+</style></head><body><main><!-- ---------- HTML divider (not XML-safe) ---------- -->
 <h1 id="headline">${updated ? "Updated heading" : "Hello, world"}</h1>
 <p>Current page, with its state preserved.</p>
 <button id="counter" onclick="this.textContent='Clicked '+(++window.count)">Click me</button>

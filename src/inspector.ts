@@ -10,6 +10,7 @@ import {
   visualFacts,
   regionText,
   regionImage,
+  snapshotFilter,
 } from "./annotation";
 import {
   MAX_IMAGE,
@@ -210,9 +211,7 @@ async function snapshot(
               pixelRatio: 1,
               skipFonts: true,
               cacheBust: false,
-              filter: (element) =>
-                !(element instanceof Element) ||
-                (!element.matches(PRIVATE) && element !== overlay),
+              filter: snapshotFilter,
               // html-to-image also applies backgroundColor to the cloned root. Restore
               // the element's own background so colored buttons are not washed out.
               backgroundColor: getComputedStyle(document.body).backgroundColor,

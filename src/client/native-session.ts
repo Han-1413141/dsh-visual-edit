@@ -17,7 +17,7 @@ export interface NativeState {
   error?: string;
   mode: SelectionMode;
   comment: string;
-  autoStatus?: "waiting" | "capturing" | "updated" | "error";
+  autoStatus?: "waiting" | "capturing" | "updated" | "partial" | "error";
   autoError?: string;
   reviewId?: string;
 }
@@ -52,6 +52,7 @@ export class NativeSession {
   private broadcast?: BroadcastChannel;
   private watchTimer?: ReturnType<typeof setTimeout>;
   private autoIds = new Set<string>();
+  private retriedImages = new Set<string>();
   private autoRunning = false;
   private captures: Promise<unknown> = Promise.resolve();
   constructor(private sessionId?: string) {
@@ -93,9 +94,11 @@ export class NativeSession {
     if (this.disposed || !this.visible) return;
     this.update({
       autoStatus: targets.length
-        ? targets.some((n) => n.after)
-          ? "updated"
-          : "waiting"
+        ? targets.some((n) => n.after && (!n.before.image || !n.after.image))
+          ? "partial"
+          : targets.some((n) => n.after)
+            ? "updated"
+            : "waiting"
         : undefined,
       autoError: undefined,
     });
@@ -106,6 +109,20 @@ export class NativeSession {
         snapshot: n.after ?? n.before,
       })),
     });
+    // Recover failed result images once per page load, including notes from older versions.
+    // Never replace a missing historical baseline with the current appearance.
+    for (const note of targets) {
+      if (
+        note.after &&
+        !note.after.image &&
+        note.after.warning === "snapshotUnavailable" &&
+        !this.retriedImages.has(note.id)
+      ) {
+        this.retriedImages.add(note.id);
+        this.autoIds.add(note.id);
+      }
+    }
+    if (this.autoIds.size) void this.comparePending();
   }
   private async comparePending() {
     if (
@@ -166,7 +183,8 @@ export class NativeSession {
           }
           this.broadcast?.postMessage("updated");
           this.update({
-            autoStatus: "updated",
+            autoStatus:
+              note.before.image && after.image ? "updated" : "partial",
             reviewId: note.id,
             enabled: true,
           });
@@ -229,6 +247,7 @@ export class NativeSession {
   }
   invalidate = () => {
     this.generation++;
+    this.retriedImages.clear();
     this.connecting = undefined;
     this.update({ status: "disconnected", picking: false });
     for (const item of this.pending.values()) {
