@@ -73,7 +73,7 @@
     "vite": "^6.4.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh": "0.2.0-rc.2",
+    "@deepseek-ai/dsh": "0.2.1-rc.3 || 0.2.0-rc.2",
     "vite": "6.4.x"
   },
   "peerDependenciesMeta": {
